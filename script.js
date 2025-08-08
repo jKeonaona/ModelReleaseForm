@@ -91,7 +91,7 @@ window.addEventListener('DOMContentLoaded', () => {
   flushQueue();
 
   // ---------- SUBMIT HANDLER (POST; no GET/414) ----------
-    form?.addEventListener('submit', async (e) => {
+     form?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Stamp signature date (local time)
@@ -104,7 +104,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (modelHidden && modelSigPad && !modelSigPad.isEmpty()) {
       modelHidden.value = modelSigPad.toDataURL('image/jpeg', 0.85);
     } else if (modelHidden) {
-      modelHidden.value = ''; // ensure field exists
+      modelHidden.value = '';
     }
 
     if (guardianHidden) {
@@ -117,7 +117,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const fd = new FormData(form);
-    const payloadObj = Object.fromEntries(fd.entries()); // for queue if needed
+    const payloadObj = Object.fromEntries(fd.entries());
 
     try {
       const resp = await fetch(ENDPOINT, { method: 'POST', body: fd });
@@ -138,4 +138,4 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-}); // <--- this closes the DOMContentLoaded wrapper
+}); // <-- closes the DOMContentLoaded wrapper
