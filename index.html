@@ -4,13 +4,43 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Model & Photo Release Form</title>
+
+  <!-- Simple, clean layout (keeps all your existing IDs/names) -->
   <style>
-    #confirmationMessage{display:none;padding:12px;margin:12px 0;border:1px solid #ccc;border-radius:8px;font-weight:600}
-    .sig-box{border:1px solid #aaa;width:100%;max-width:560px;height:220px;display:block}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .row>label{flex:1 1 220px;min-width:220px}
-    .actions{margin-top:16px;display:flex;gap:12px;align-items:center}
+    :root { --gap:14px; --field-h:40px; --maxw:960px; }
+    body { font-family: system-ui, Arial, sans-serif; margin:0; }
+    .overlay { max-width: var(--maxw); margin: 24px auto; padding: 0 16px; }
+    .logo { max-width: 200px; height:auto; }
+    h1 { margin: 8px 0 16px; }
+
+    #confirmationMessage{
+      display:none; padding:12px; margin:12px 0;
+      border:1px solid #d0d0d0; border-radius:8px; font-weight:600; background:#f7f7f7;
+    }
+
+    #releaseForm { display:grid; gap: var(--gap); }
+    #releaseForm .row{ display:grid; gap: var(--gap); grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 760px){ #releaseForm .row{ grid-template-columns: 1fr; } }
+
+    label{ display:flex; flex-direction:column; font-weight:600; font-size:14px; }
+    input[type="text"], input[type="tel"], input[type="email"], input[type="file"], select, textarea{
+      margin-top:6px; height: var(--field-h); padding: 8px 10px; font: inherit;
+      border:1px solid #c9c9c9; border-radius:8px; outline:none;
+    }
+    textarea{ height:auto; min-height:110px; resize:vertical; }
+    select{ height:auto; }
+
+    .sig-box{
+      width:100%; max-width:100%; height:220px;
+      border:1px solid #aaa; border-radius:8px; background:#fff;
+    }
+    .actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    button{ padding:10px 16px; border:1px solid #222; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+    button[type="button"]{ background:#666; border-color:#666; }
+    #childrenSection, #guardianSection{ padding:12px; border:1px dashed #c9c9c9; border-radius:10px; background:#fafafa; }
   </style>
+
+  <!-- SignaturePad lib + your script -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js" defer></script>
   <script src="script.js" defer></script>
 </head>
@@ -19,18 +49,42 @@
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
 
-    <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
+    <!-- Keep your existing confirmation element/name -->
+    <div id="confirmationMessage" style="display:none;">✅ Thank you! Your form was submitted.</div>
 
     <form id="releaseForm" method="post" action="#">
       <div class="row">
-        <label>Full Name:<input type="text" name="fullName" required /></label>
-        <label>Address Line 1:<input type="text" name="address1" /></label>
-        <label>Address Line 2:<input type="text" name="address2" /></label>
-        <label>City:<input type="text" name="city" /></label>
-        <label>State:<input type="text" name="state" /></label>
-        <label>ZIP:<input type="text" name="zip" /></label>
-        <label>Phone:<input type="tel" name="phone" /></label>
-        <label>Email:<input type="email" name="email" /></label>
+        <label>Full Name:
+          <input type="text" name="fullName" required />
+        </label>
+
+        <label>Address Line 1:
+          <input type="text" name="address1" />
+        </label>
+
+        <label>Address Line 2:
+          <input type="text" name="address2" />
+        </label>
+
+        <label>City:
+          <input type="text" name="city" />
+        </label>
+
+        <label>State:
+          <input type="text" name="state" />
+        </label>
+
+        <label>ZIP:
+          <input type="text" name="zip" />
+        </label>
+
+        <label>Phone:
+          <input type="tel" name="phone" />
+        </label>
+
+        <label>Email:
+          <input type="email" name="email" />
+        </label>
       </div>
 
       <label>Are you at least 18 years of age?
@@ -41,7 +95,7 @@
         </select>
       </label>
 
-      <div id="childrenSection" style="display:none;">
+      <div id="childrenSection" style="display: none;">
         <h3>Additional Children (if any)</h3>
         <label>Names and ages:<br>
           <small>Example: Jane (7), Sam (5)</small>
@@ -49,10 +103,14 @@
         </label>
       </div>
 
-      <div id="guardianSection" style="display:none;">
+      <div id="guardianSection" style="display: none;">
         <h3>Parent/Guardian Info</h3>
-        <label>Guardian Name:<input type="text" name="guardianName" /></label>
-        <label>Relationship to Participant:<input type="text" name="guardianRelationship" /></label>
+        <label>Guardian Name:
+          <input type="text" name="guardianName" />
+        </label>
+        <label>Relationship to Participant:
+          <input type="text" name="guardianRelationship" />
+        </label>
         <label>Guardian Signature:</label>
         <canvas id="guardianSignatureCanvas" class="sig-box"></canvas>
         <div class="actions">
