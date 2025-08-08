@@ -22,17 +22,40 @@ document.addEventListener("DOMContentLoaded", function () {
   const guardianPad = initPad(guardianCanvas);
 
   // Age -> show/hide guardian + children sections
-  if (ageSelect) {
-    ageSelect.addEventListener("change", function () {
-      const isMinor = ageSelect.value === "no";
-      if (guardianSection) guardianSection.style.display = isMinor ? "block" : "none";
-      if (childrenSection) childrenSection.style.display = isMinor ? "block" : "none";
-    });
+ if (ageSelect) {
+  ageSelect.addEventListener("change", function () {
+    const isMinor = ageSelect.value === "no";
+
+    // Show/hide sections
+    if (guardianSection) guardianSection.style.display = isMinor ? "block" : "none";
+    if (childrenSection) childrenSection.style.display = isMinor ? "block" : "none";
+
+    // Initialize the guardian pad only after it is visible
+    if (isMinor) {
+      if (!guardianPad && guardianCanvas) {
+        // Wait a tick so layout applies display:block and canvas has dimensions
+        setTimeout(() => {
+          guardianPad = initPad(guardianCanvas);
+        }, 0);
+      }
+    } else {
+      // Optional: tear down when switching back to adult
+      if (guardianPad) guardianPad.clear();
+      guardianPad = null;
+    }
+  });
+}
+
   }
 
   // Clear buttons used by HTML onclick
-  window.clearModelSig = () => modelPad && modelPad.clear();
-  window.clearGuardianSig = () => guardianPad && guardianPad.clear();
+  window.clearGuardianSig = () => {
+  if (!guardianPad && guardianCanvas && guardianSection.style.display !== "none") {
+    guardianPad = initPad(guardianCanvas);
+  }
+  guardianPad && guardianPad.clear();
+};
+
 
   // --- EmailJS offline queue ---
   const QUEUE_KEY = "emailjs-queue";
@@ -127,3 +150,4 @@ document.addEventListener("DOMContentLoaded", function () {
   // Try to send any queued submissions now
   flushQueue();
 });
+
