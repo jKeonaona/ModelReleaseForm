@@ -1,48 +1,60 @@
-window.addEventListener("load", () => {
+document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("releaseForm");
-  const confirmation = document.getElementById("confirmationMessage");
-
-  const modelSigPad = new SignaturePad(document.getElementById("modelSignatureCanvas"));
-  const guardianSigPad = new SignaturePad(document.getElementById("guardianSignatureCanvas"));
-
-  // Show guardian section if user is under 18
-  const ageCheck = document.getElementById("ageCheck");
-  const childrenSection = document.getElementById("childrenSection");
-  const guardianSection = document.getElementById("guardianSection");
-
-  ageCheck.addEventListener("change", () => {
-    const under18 = ageCheck.value === "no";
-    childrenSection.style.display = under18 ? "block" : "none";
-    guardianSection.style.display = under18 ? "block" : "none";
+  const signaturePad = new SignaturePad(document.getElementById("signature-pad"), {
+    backgroundColor: 'rgba(255, 255, 255, 0)',
   });
 
-  // Clear signature buttons
-  window.clearModelSig = () => modelSigPad.clear();
-  window.clearGuardianSig = () => guardianSigPad.clear();
+  // Clear signature
+  document.getElementById("clear").addEventListener("click", function () {
+    signaturePad.clear();
+  });
 
-  form.addEventListener("submit", (e) => {
+  // Download PDF
+  document.getElementById("download").addEventListener("click", function () {
+    window.print();
+  });
+
+  // Submit form
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
 
-    try {
-      const modelSigData = modelSigPad.isEmpty() ? "" : modelSigPad.toDataURL();
-      const guardianSigData = guardianSigPad.isEmpty() ? "" : guardianSigPad.toDataURL();
+    if (signaturePad.isEmpty()) {
+      alert("Please provide a signature.");
+      return;
+    }
 
-      document.getElementById("modelSignatureData").value = modelSigData;
-      document.getElementById("guardianSignatureData").value = guardianSigData;
+    const formData = new FormData(form);
+    formData.append("signature", signaturePad.toDataURL());
 
-      // Just show confirmation message, no fetch or backend
-      confirmation.textContent = "✅ Thank you! Your form was submitted.";
-      confirmation.style.display = "block";
+    const entries = {};
+    formData.forEach((value, key) => {
+      entries[key] = value;
+    });
 
+    // Save as JSON blob
+    const blob = new Blob([JSON.stringify(entries, null, 2)], {
+      type: "application/json",
+    });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ModelReleaseForm.json";
+    a.click();
+
+    // Show thank you message
+    const thankYou = document.getElementById("thankYou");
+    if (thankYou) {
+      thankYou.style.display = "block";
       setTimeout(() => {
+        thankYou.style.display = "none";
         form.reset();
-        confirmation.style.display = "none";
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        signaturePad.clear();
+        window.scrollTo(0, 0);
       }, 5000);
-    } catch (error) {
-      confirmation.textContent = "❌ Error during form submission.";
-      confirmation.style.display = "block";
-      console.error("Submission error:", error);
+    } else {
+      form.reset();
+      signaturePad.clear();
+      window.scrollTo(0, 0);
     }
   });
 });
