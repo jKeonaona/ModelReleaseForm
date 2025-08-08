@@ -117,7 +117,6 @@
     }
   </style>
 
-  <!-- Signature Pad library -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -125,15 +124,32 @@
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
     <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
+
     <form id="releaseForm">
-      <label>Full Name:<input type="text" name="fullName" required /></label>
-      <label>Address Line 1:<input type="text" name="address1" /></label>
-      <label>Address Line 2:<input type="text" name="address2" /></label>
-      <label>City:<input type="text" name="city" /></label>
-      <label>State:<input type="text" name="state" /></label>
-      <label>Zip Code:<input type="text" name="zip" /></label>
-      <label>Phone:<input type="text" name="phone" /></label>
-      <label>Email:<input type="email" name="email" /></label>
+      <label>Full Name:
+        <input type="text" name="fullName" required />
+      </label>
+      <label>Address Line 1:
+        <input type="text" name="address1" />
+      </label>
+      <label>Address Line 2:
+        <input type="text" name="address2" />
+      </label>
+      <label>City:
+        <input type="text" name="city" />
+      </label>
+      <label>State:
+        <input type="text" name="state" />
+      </label>
+      <label>Zip Code:
+        <input type="text" name="zip" />
+      </label>
+      <label>Phone:
+        <input type="text" name="phone" />
+      </label>
+      <label>Email:
+        <input type="email" name="email" />
+      </label>
       <label>Are you at least 18 years of age?
         <select id="ageCheck" name="ageCheck" required>
           <option value="">Select</option>
@@ -144,15 +160,20 @@
 
       <div id="childrenSection" style="display: none;">
         <h3>Additional Children (if any)</h3>
-        <label>Names and ages:<br><small>Example: Jane (7), Sam (5)</small>
-          <textarea name="additionalChildren" rows="3"></textarea>
+        <label>Names and ages:<br>
+          <small>Example: Jane (7), Sam (5)</small>
+          <textarea name="additionalChildren" rows="3" placeholder="Enter names and ages here"></textarea>
         </label>
       </div>
 
       <div id="guardianSection" style="display: none;">
         <h3>Parent/Guardian Info</h3>
-        <label>Guardian Name:<input type="text" name="guardianName" /></label>
-        <label>Relationship to Participant:<input type="text" name="guardianRelationship" /></label>
+        <label>Guardian Name:
+          <input type="text" name="guardianName" />
+        </label>
+        <label>Relationship to Participant:
+          <input type="text" name="guardianRelationship" />
+        </label>
         <label>Guardian Signature:</label>
         <canvas id="guardianSignatureCanvas"></canvas>
         <button type="button" onclick="clearGuardianSig()">Clear Guardian Signature</button>
@@ -160,7 +181,8 @@
       </div>
 
       <label>
-        Please take or upload a photo of yourself.<br><small>Tap the Upload button on the right to open your camera or files.</small>
+        Please take or upload a photo of yourself.<br>
+        <small>Tap the Upload button on the right to open your camera or files.</small>
         <input type="file" name="headshot" accept="image/*" capture="user" />
       </label>
 
@@ -178,11 +200,59 @@
       <button type="button" onclick="clearModelSig()">Clear Model Signature</button>
       <input type="hidden" name="modelSignature" id="modelSignatureData" />
 
-      <label>Date:<input type="date" name="signatureDate" required /></label>
+      <label>Date:
+        <input type="date" name="signatureDate" required />
+      </label>
 
       <button type="submit">Submit</button>
     </form>
   </div>
-  <script src="script.js"></script>
+
+  <script>
+    const modelCanvas = document.getElementById("modelSignatureCanvas");
+    const guardianCanvas = document.getElementById("guardianSignatureCanvas");
+
+    const modelPad = new SignaturePad(modelCanvas);
+    const guardianPad = new SignaturePad(guardianCanvas);
+
+    function clearModelSig() {
+      modelPad.clear();
+    }
+
+    function clearGuardianSig() {
+      guardianPad.clear();
+    }
+
+    document.getElementById("ageCheck").addEventListener("change", function () {
+      const age = this.value;
+      document.getElementById("guardianSection").style.display = age === "no" ? "block" : "none";
+      document.getElementById("childrenSection").style.display = age === "no" ? "block" : "none";
+    });
+
+    const form = document.getElementById("releaseForm");
+    const confirmation = document.getElementById("confirmationMessage");
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      confirmation.textContent = '';
+      confirmation.style.display = 'none';
+
+      const formData = new FormData(form);
+      formData.set("modelSignature", modelPad.isEmpty() ? "" : modelPad.toDataURL());
+      formData.set("guardianSignature", guardianPad.isEmpty() ? "" : guardianPad.toDataURL());
+
+      confirmation.textContent = "✅ Form saved locally. (No upload in this version)";
+      confirmation.style.display = "block";
+
+      setTimeout(() => {
+        confirmation.style.display = "none";
+        form.reset();
+        modelPad.clear();
+        guardianPad.clear();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 5000);
+    });
+  </script>
 </body>
 </html>
