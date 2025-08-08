@@ -3,136 +3,127 @@ document.addEventListener("DOMContentLoaded", function () {
   const ageSelect = document.getElementById("ageCheck");
   const guardianSection = document.getElementById("guardianSection");
   const childrenSection = document.getElementById("childrenSection");
+  const msg = document.getElementById("confirmationMessage");
 
+  // Setup signature pads
   const modelCanvas = document.getElementById("modelSignatureCanvas");
   const guardianCanvas = document.getElementById("guardianSignatureCanvas");
 
-  const modelSigField = document.getElementById("modelSignatureData");
-  const guardianSigField = document.getElementById("guardianSignatureData");
-  const msg = document.getElementById("confirmationMessage");
-
-  let modelPad;
-  let guardianPad = null;
-
-  // Resize canvas and initialize signature pad
-  function resizeCanvasAndInit(canvas, type) {
+  function initPad(canvas) {
+    if (!canvas) return null;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = canvas.offsetWidth * ratio;
     canvas.height = canvas.offsetHeight * ratio;
     canvas.getContext("2d").scale(ratio, ratio);
-
-    if (type === "model") {
-      modelPad = new SignaturePad(canvas);
-    } else if (type === "guardian") {
-      guardianPad = new SignaturePad(canvas);
-    }
+    return new SignaturePad(canvas);
   }
 
-  // Initialize model signature pad
-  resizeCanvasAndInit(modelCanvas, "model");
+  const modelPad = initPad(modelCanvas);
+  const guardianPad = initPad(guardianCanvas);
 
-  ageSelect.addEventListener("change", function () {
-    const isMinor = ageSelect.value === "no";
-    guardianSection.style.display = isMinor ? "block" : "none";
-    childrenSection.style.display = isMinor ? "block" : "none";
-
-    if (isMinor && !guardianPad) {
-      // Wait for DOM to apply display: block before resizing
-      setTimeout(() => {
-        resizeCanvasAndInit(guardianCanvas, "guardian");
-      }, 150);
-    }
-  });
-
-  // Clear signature buttons
-  window.clearModelSig = () => modelPad?.clear();
-  window.clearGuardianSig = () => guardianPad?.clear();
-
-  // Submit handler
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    // Capture signatures safely
-    try {
-      modelSigField.value = modelPad && !modelPad.isEmpty() ? modelPad.toDataURL() : "";
-    } catch (err) {
-      console.warn("Model signature error:", err);
-      modelSigField.value = "";
-    }
-
-    try {
-      guardianSigField.value = guardianPad && !guardianPad.isEmpty() ? guardianPad.toDataURL() : "";
-    } catch (err) {
-      console.warn("Guardian signature error:", err);
-      guardianSigField.value = "";
-    }
-
-    const formData = {
-      name: form.elements["fullName"].value || "",
-      email: form.elements["email"].value || "",
-      phone: form.elements["phone"].value || "",
-      date: form.elements["signatureDate"].value || "",
-      modelSignature: modelSigField.value,
-      guardianSignature: guardianSigField.value
-    };
-
-    if (navigator.onLine) {
-      fetch("https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(formData)
-      })
-      .then(response => response.text())
-      .then(result => {
-        console.log("Server says:", result);
-      })
-      .catch(error => {
-        console.error("Error:", error);
-        alert("There was an issue submitting the form.");
-      });
-    } else {
-      localStorage.setItem("form-Tb", JSON.stringify(formData));
-      alert("Offline: Form saved and will send when you're back online.");
-    }
-
-    // Show thank-you message
-    msg.style.display = "block";
-    msg.scrollIntoView({ behavior: "smooth" });
-
-    // Reset form and signature pads after delay
-    setTimeout(() => {
-      modelPad?.clear();
-      guardianPad?.clear();
-
-      form.reset();
-      guardianSection.style.display = "none";
-      childrenSection.style.display = "none";
-      msg.style.display = "none";
-    }, 3000);
-  });
-});
-
-// ✅ Auto-submit saved form when back online
-window.addEventListener("online", () => {
-  const saved = localStorage.getItem("form-Tb");
-  if (saved) {
-    fetch("https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: saved
-    })
-    .then(response => response.text())
-    .then(result => {
-      console.log("Offline-saved form submitted:", result);
-      localStorage.removeItem("form-Tb");
-      alert("✅ Your previously saved form has now been submitted.");
-    })
-    .catch(err => {
-      console.error("Auto-submit failed:", err);
+  // Age -> show/hide guardian + children sections
+  if (ageSelect) {
+    ageSelect.addEventListener("change", function () {
+      const isMinor = ageSelect.value === "no";
+      if (guardianSection) guardianSection.style.display = isMinor ? "block" : "none";
+      if (childrenSection) childrenSection.style.display = isMinor ? "block" : "none";
     });
   }
+
+  // Clear buttons used by HTML onclick
+  window.clearModelSig = () => modelPad && modelPad.clear();
+  window.clearGuardianSig = () => guardianPad && guardianPad.clear();
+
+  // --- EmailJS offline queue ---
+  const QUEUE_KEY = "emailjs-queue";
+  function enqueue(payload) {
+    const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    q.push(payload);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  }
+  async function flushQueue() {
+    const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (!q.length) return;
+    const remaining = [];
+    for (const payload of q) {
+      try {
+        await emailjs.send("service_xpgramm", "template_xsg9cft", payload);
+      } catch (e) {
+        remaining.push(payload);
+      }
+    }
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+  }
+  window.addEventListener("online", flushQueue);
+
+  // Submit -> EmailJS
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const get = (name) => (form.elements[name] ? form.elements[name].value : "");
+
+    const params = {
+      // recipient (your EmailJS template should use {{user_email}})
+      user_email: get("email"),
+
+      // contact details
+      fullName: get("fullName"),
+      email: get("email"),
+      phone: get("phone"),
+      address1: get("address1"),
+      address2: get("address2"),
+      city: get("city"),
+      state: get("state"),
+      zip: get("zip"),
+
+      // age/children/guardian
+      ageCheck: get("ageCheck"),
+      additionalChildren: get("additionalChildren"),
+      guardianName: get("guardianName"),
+      guardianRelationship: get("guardianRelationship"),
+
+      // signatures (base64 images)
+      model_signature: modelPad && !modelPad.isEmpty() ? modelPad.toDataURL() : "",
+      guardian_signature: guardianPad && !guardianPad.isEmpty() ? guardianPad.toDataURL() : "",
+
+      // date
+      signatureDate: get("signatureDate"),
+    };
+
+    function showThankYouAndReset() {
+      if (msg) {
+        msg.textContent = "✅ Thank you! Your form has been sent (or queued if offline).";
+        msg.style.display = "block";
+      }
+      setTimeout(() => {
+        form.reset();
+        modelPad && modelPad.clear();
+        guardianPad && guardianPad.clear();
+        if (msg) msg.style.display = "none";
+        const first = form.querySelector('input[name="fullName"]');
+        if (first) first.focus();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 1200);
+    }
+
+    try {
+      if (navigator.onLine) {
+        await emailjs.send("service_xpgramm", "template_xsg9cft", params);
+      } else {
+        enqueue(params);
+      }
+      showThankYouAndReset();
+    } catch (err) {
+      console.error("Email send failed:", err);
+      enqueue(params);
+      if (msg) {
+        msg.textContent =
+          "⚠️ Network issue. Your form is saved and will send automatically when you're back online.";
+        msg.style.display = "block";
+      }
+    }
+  });
+
+  // Try to send any queued submissions now
+  flushQueue();
 });
