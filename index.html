@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WildPx Model Release</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+  <div class="overlay" id="form-container">
+    <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
+    <h1>Model & Photo Release Form</h1>
+    <form id="releaseForm">
+      <label>Full Name: <input type="text" name="fullName" required /></label>
+      <label>Email: <input type="email" name="email" required /></label>
+      <label>Are you at least 18 years of age?
+        <select id="ageCheck" name="ageCheck" required>
+          <option value="">Select</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </label>
+      <div id="guardianSection" style="display: none;">
+        <label>Guardian Name: <input type="text" name="guardianName" /></label>
+        <label>Guardian Signature:</label>
+        <canvas id="guardianSignatureCanvas"></canvas>
+        <button type="button" onclick="clearGuardianSig()">Clear Guardian Signature</button>
+      </div>
+      <label>Model Signature:</label>
+      <canvas id="modelSignatureCanvas"></canvas>
+      <button type="button" onclick="clearModelSig()">Clear Model Signature</button>
+      <label>Date: <input type="date" name="signatureDate" required /></label>
+      <button type="submit">Download PDF</button>
+    </form>
+    <div id="confirmationMessage">✅ PDF generated and downloaded.</div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
