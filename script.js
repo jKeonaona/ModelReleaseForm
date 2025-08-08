@@ -91,7 +91,7 @@ window.addEventListener('DOMContentLoaded', () => {
   flushQueue();
 
   // ---------- SUBMIT HANDLER (POST; no GET/414) ----------
-  form?.addEventListener('submit', async (e) => {
+    form?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Stamp signature date (local time)
@@ -137,4 +137,5 @@ window.addEventListener('DOMContentLoaded', () => {
       showThankYou('📶 Saved offline. I’ll auto-send when you’re back online.');
     }
   });
-});
+
+}); // <--- this closes the DOMContentLoaded wrapper
