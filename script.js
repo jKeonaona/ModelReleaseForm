@@ -12,15 +12,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const modelSignatureData = document.getElementById("modelSignatureData");
 
     // Show/hide guardian section
-    ageCheck.addEventListener("change", function () {
-        if (this.value === "no") {
-            guardianSection.style.display = "block";
-            childrenSection.style.display = "block";
-        } else {
-            guardianSection.style.display = "none";
-            childrenSection.style.display = "none";
-        }
-    });
+  ageCheck.addEventListener("change", function () {
+    if (this.value.toLowerCase() === "no") {
+        guardianSection.style.display = "";
+        childrenSection.style.display = "";
+    } else {
+        guardianSection.style.display = "none";
+        childrenSection.style.display = "none";
+    }
+});
+
 
     // Clear guardian signature
     window.clearGuardianSig = function () {
@@ -49,3 +50,4 @@ document.addEventListener("DOMContentLoaded", function () {
         this.submit();
     });
 });
+
