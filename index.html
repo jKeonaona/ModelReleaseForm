@@ -1,176 +1,63 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WildPx Model Release</title>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Model & Photo Release Form</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: url('BackgroundImage.png') no-repeat center center fixed;
-      background-size: cover;
-      position: relative;
-      color: #fff;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0, 100, 0, 0.8);
-      z-index: 0;
-    }
-
-    .overlay {
-      position: relative;
-      z-index: 1;
-      background-color: rgba(0, 0, 0, 0.65);
-      padding: 20px;
-      max-width: 600px;
-      margin: 40px auto;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-    }
-
-    #confirmationMessage {
-      display: none;
-      text-align: center;
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 1.1rem;
-      padding: 12px;
-      border-radius: 8px;
-      background-color: rgba(144, 238, 144, 0.15);
-      color: #aaffaa;
-      border: 1px solid #77dd77;
-      animation: fadeInOut 3s ease-in-out;
-    }
-
-    @keyframes fadeInOut {
-      0%   { opacity: 0; }
-      10%  { opacity: 1; }
-      90%  { opacity: 1; }
-      100% { opacity: 0; }
-    }
-
-    label, select, input, textarea, button {
-      display: block;
-      width: 100%;
-      margin-bottom: 12px;
-      font-size: 1rem;
-    }
-
-    input, select, textarea {
-      padding: 8px;
-      border-radius: 4px;
-      border: none;
-      box-sizing: border-box;
-    }
-
-    button {
-      background-color: #5cb85c;
-      color: white;
-      font-weight: bold;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #4cae4c;
-    }
-
-    .logo {
-      display: block;
-      margin: 0 auto 20px;
-      max-width: 200px;
-    }
-
-    small {
-      font-size: 0.85em;
-      color: #ccc;
-    }
-
-    ul {
-      padding-left: 20px;
-    }
-
-    ul li {
-      margin-bottom: 8px;
-    }
-
-    canvas {
-      background-color: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      display: block;
-      margin-bottom: 10px;
-      width: 100%;
-      height: 150px;
-      touch-action: none;
-    }
+    /* minimal helper styles */
+    #confirmationMessage { display:none; padding:12px; margin:12px 0; border:1px solid #ccc; border-radius:8px; font-weight:600; }
+    .sig-box { border:1px solid #aaa; width:100%; max-width:560px; height:220px; display:block; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > label { flex:1 1 220px; min-width:220px; }
+    .actions { margin-top:16px; display:flex; gap:12px; align-items:center; }
   </style>
-
-  <!-- Signature Pad library -->
-  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
-
-  <!-- EmailJS (required for sending emails) -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-  <script>
-    (function () {
-      // Your EmailJS Public Key
-      emailjs.init({ publicKey: "ZL6bzLecBAW63-WVz" });
-    })();
-  </script>
+  <!-- SignaturePad (needed for canvases). Loads in parallel with defer scripts. -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js" defer></script>
+  <script src="script.js" defer></script>
 </head>
-
 <body>
   <div class="overlay">
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
 
-    <!-- ✅ Single confirmation message element -->
+    <!-- Single confirmation message element -->
     <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
 
-    <form id="releaseForm">
-      <label>Full Name:
-        <input type="text" name="fullName" required />
-      </label>
+    <form id="releaseForm" method="post" action="#">
+      <div class="row">
+        <label>Full Name:
+          <input type="text" name="fullName" required />
+        </label>
 
-      <label>Address Line 1:
-        <input type="text" name="address1" />
-      </label>
+        <label>Address Line 1:
+          <input type="text" name="address1" />
+        </label>
 
-      <label>Address Line 2:
-        <input type="text" name="address2" />
-      </label>
+        <label>Address Line 2:
+          <input type="text" name="address2" />
+        </label>
 
-      <label>City:
-        <input type="text" name="city" />
-      </label>
+        <label>City:
+          <input type="text" name="city" />
+        </label>
 
-      <label>State:
-        <input type="text" name="state" />
-      </label>
+        <label>State:
+          <input type="text" name="state" />
+        </label>
 
-      <label>Zip Code:
-        <input type="text" name="zip" />
-      </label>
+        <label>ZIP:
+          <input type="text" name="zip" />
+        </label>
 
-      <label>Phone:
-        <input type="text" name="phone" />
-      </label>
+        <label>Phone:
+          <input type="tel" name="phone" />
+        </label>
 
-      <label>Email:
-        <input type="email" name="email" />
-      </label>
+        <label>Email:
+          <input type="email" name="email" />
+        </label>
+      </div>
 
       <label>Are you at least 18 years of age?
         <select id="ageCheck" name="ageCheck" required>
@@ -180,7 +67,7 @@
         </select>
       </label>
 
-      <div id="childrenSection" style="display: none;">
+      <div id="childrenSection" style="display:none;">
         <h3>Additional Children (if any)</h3>
         <label>Names and ages:<br>
           <small>Example: Jane (7), Sam (5)</small>
@@ -188,7 +75,7 @@
         </label>
       </div>
 
-      <div id="guardianSection" style="display: none;">
+      <div id="guardianSection" style="display:none;">
         <h3>Parent/Guardian Info</h3>
         <label>Guardian Name:
           <input type="text" name="guardianName" />
@@ -196,43 +83,32 @@
         <label>Relationship to Participant:
           <input type="text" name="guardianRelationship" />
         </label>
+
         <label>Guardian Signature:</label>
-        <canvas id="guardianSignatureCanvas"></canvas>
-        <button type="button" onclick="clearGuardianSig()">Clear Guardian Signature</button>
+        <canvas id="guardianSignatureCanvas" class="sig-box"></canvas>
+        <div class="actions">
+          <button type="button" id="clearGuardianSigBtn">Clear Guardian Signature</button>
+        </div>
         <input type="hidden" name="guardianSignature" id="guardianSignatureData" />
       </div>
 
-      <label>
-        Please take or upload a photo of yourself.<br>
-        <small>Tap the Upload button on the right to open your camera or files.</small>
-        <input type="file" name="headshot" accept="image/*" capture="user" />
-      </label>
-
-      <p><strong>Photo Release & Copyright Agreement</strong></p>
-      <p>I hereby grant WildPx LLC... (contract terms truncated for space)</p>
-
-      <ul>
-        <li>I do not own any rights to the images.</li>
-        <li>All rights remain with WildPx LLC.</li>
-        <li>No compensation unless agreed in writing.</li>
-        <li>Images may be edited or modified.</li>
-        <li>I waive right to review final use.</li>
-      </ul>
-
-      <label>Model Signature:</label>
-      <canvas id="modelSignatureCanvas"></canvas>
-      <button type="button" onclick="clearModelSig()">Clear Model Signature</button>
+      <h3>Model Signature</h3>
+      <canvas id="modelSignatureCanvas" class="sig-box"></canvas>
+      <div class="actions">
+        <button type="button" id="clearModelSigBtn">Clear Model Signature</button>
+      </div>
       <input type="hidden" name="modelSignature" id="modelSignatureData" />
 
-      <label>Date:
-        <input type="date" name="signatureDate" required />
+      <label>Headshot (optional):
+        <input type="file" name="headshot" accept="image/*" />
       </label>
 
-      <button type="submit">Submit</button>
+      <input type="hidden" name="signatureDate" id="signatureDate" />
+
+      <div class="actions">
+        <button type="submit">Submit</button>
+      </div>
     </form>
   </div>
-
-  <!-- One and only script include -->
-  <script src="script.js"></script>
 </body>
 </html>
