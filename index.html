@@ -5,14 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Model & Photo Release Form</title>
   <style>
-    /* minimal helper styles */
-    #confirmationMessage { display:none; padding:12px; margin:12px 0; border:1px solid #ccc; border-radius:8px; font-weight:600; }
-    .sig-box { border:1px solid #aaa; width:100%; max-width:560px; height:220px; display:block; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .row > label { flex:1 1 220px; min-width:220px; }
-    .actions { margin-top:16px; display:flex; gap:12px; align-items:center; }
+    #confirmationMessage{display:none;padding:12px;margin:12px 0;border:1px solid #ccc;border-radius:8px;font-weight:600}
+    .sig-box{border:1px solid #aaa;width:100%;max-width:560px;height:220px;display:block}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row>label{flex:1 1 220px;min-width:220px}
+    .actions{margin-top:16px;display:flex;gap:12px;align-items:center}
   </style>
-  <!-- SignaturePad (needed for canvases). Loads in parallel with defer scripts. -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js" defer></script>
   <script src="script.js" defer></script>
 </head>
@@ -21,42 +19,18 @@
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
 
-    <!-- Single confirmation message element -->
     <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
 
     <form id="releaseForm" method="post" action="#">
       <div class="row">
-        <label>Full Name:
-          <input type="text" name="fullName" required />
-        </label>
-
-        <label>Address Line 1:
-          <input type="text" name="address1" />
-        </label>
-
-        <label>Address Line 2:
-          <input type="text" name="address2" />
-        </label>
-
-        <label>City:
-          <input type="text" name="city" />
-        </label>
-
-        <label>State:
-          <input type="text" name="state" />
-        </label>
-
-        <label>ZIP:
-          <input type="text" name="zip" />
-        </label>
-
-        <label>Phone:
-          <input type="tel" name="phone" />
-        </label>
-
-        <label>Email:
-          <input type="email" name="email" />
-        </label>
+        <label>Full Name:<input type="text" name="fullName" required /></label>
+        <label>Address Line 1:<input type="text" name="address1" /></label>
+        <label>Address Line 2:<input type="text" name="address2" /></label>
+        <label>City:<input type="text" name="city" /></label>
+        <label>State:<input type="text" name="state" /></label>
+        <label>ZIP:<input type="text" name="zip" /></label>
+        <label>Phone:<input type="tel" name="phone" /></label>
+        <label>Email:<input type="email" name="email" /></label>
       </div>
 
       <label>Are you at least 18 years of age?
@@ -77,13 +51,8 @@
 
       <div id="guardianSection" style="display:none;">
         <h3>Parent/Guardian Info</h3>
-        <label>Guardian Name:
-          <input type="text" name="guardianName" />
-        </label>
-        <label>Relationship to Participant:
-          <input type="text" name="guardianRelationship" />
-        </label>
-
+        <label>Guardian Name:<input type="text" name="guardianName" /></label>
+        <label>Relationship to Participant:<input type="text" name="guardianRelationship" /></label>
         <label>Guardian Signature:</label>
         <canvas id="guardianSignatureCanvas" class="sig-box"></canvas>
         <div class="actions">
