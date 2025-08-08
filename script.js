@@ -1,20 +1,21 @@
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("releaseForm");
-  const signaturePad = new SignaturePad(document.getElementById("signature-pad"), {
-    backgroundColor: 'rgba(255, 255, 255, 0)',
+  const signatureCanvas = document.getElementById("signature-pad");
+  const signaturePad = new SignaturePad(signatureCanvas, {
+    backgroundColor: 'rgba(255, 255, 255, 0)'
   });
 
-  // Clear signature
-  document.getElementById("clear").addEventListener("click", function () {
+  const clearButton = document.getElementById("clear");
+  const downloadButton = document.getElementById("download");
+
+  clearButton.addEventListener("click", function () {
     signaturePad.clear();
   });
 
-  // Download PDF
-  document.getElementById("download").addEventListener("click", function () {
+  downloadButton.addEventListener("click", function () {
     window.print();
   });
 
-  // Submit form
   form.addEventListener("submit", function (e) {
     e.preventDefault();
 
@@ -26,14 +27,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const formData = new FormData(form);
     formData.append("signature", signaturePad.toDataURL());
 
-    const entries = {};
+    const data = {};
     formData.forEach((value, key) => {
-      entries[key] = value;
+      data[key] = value;
     });
 
-    // Save as JSON blob
-    const blob = new Blob([JSON.stringify(entries, null, 2)], {
-      type: "application/json",
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
     });
 
     const a = document.createElement("a");
@@ -41,7 +41,6 @@ document.addEventListener("DOMContentLoaded", function () {
     a.download = "ModelReleaseForm.json";
     a.click();
 
-    // Show thank you message
     const thankYou = document.getElementById("thankYou");
     if (thankYou) {
       thankYou.style.display = "block";
