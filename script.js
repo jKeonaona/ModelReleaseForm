@@ -10,6 +10,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const modelCanvas = document.getElementById("modelSignatureCanvas");
     const modelSigPad = new SignaturePad(modelCanvas);
     const modelSignatureData = document.getElementById("modelSignatureData");
+// ---- Thank-you UI helpers ----
+function showThankYou(text = 'Thank you! Your form was submitted.') {
+  const el = document.getElementById('thankYou');
+  if (el) {
+    el.textContent = text;
+    el.style.display = '';
+    // return to top and hide after ~6s
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => { el.style.display = 'none'; }, 6000);
+  } else {
+    // Fallback if you don't have a #thankYou element in HTML
+    alert(text);
+  }
+}
 
     // Show/hide guardian section
   ageCheck.addEventListener("change", function () {
@@ -92,3 +106,4 @@ document.addEventListener("DOMContentLoaded", function () {
 
   flushQueue();
 });
+
