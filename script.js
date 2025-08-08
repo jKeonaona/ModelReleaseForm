@@ -1,4 +1,4 @@
-// ===== Model Release Form — Matched to index.html =====
+// ===== Model Release Form — Matched to index.html (no renames) =====
 window.addEventListener('DOMContentLoaded', () => {
   // ---------- ELEMENTS ----------
   const form = document.getElementById('releaseForm');
@@ -10,22 +10,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const signatureDate = document.getElementById('signatureDate');
 
-  // Hidden inputs for signatures
   const modelHidden = document.getElementById('modelSignatureData');
   const guardianHidden = document.getElementById('guardianSignatureData');
 
-  // Canvases for signatures
   const modelCanvas = document.getElementById('modelSignatureCanvas');
   const guardianCanvas = document.getElementById('guardianSignatureCanvas');
 
-  // Clear buttons
   const clearModelSigBtn = document.getElementById('clearModelSigBtn');
   const clearGuardianSigBtn = document.getElementById('clearGuardianSigBtn');
 
-  // ---------- CONFIG: Your backend endpoint (Google Apps Script) ----------
+  // ---------- CONFIG: your backend endpoint ----------
   const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec';
 
-  // ---------- SIGNATURE PADS ----------
+  // ---------- SignaturePad (safe init) ----------
   let modelSigPad = null;
   let guardianSigPad = null;
   if (window.SignaturePad) {
@@ -33,10 +30,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if (guardianCanvas) guardianSigPad = new SignaturePad(guardianCanvas);
   }
 
-  clearModelSigBtn?.addEventListener('click', () => modelSigPad?.clear?.());
-  clearGuardianSigBtn?.addEventListener('click', () => guardianSigPad?.clear?.());
+  clearModelSigBtn && clearModelSigBtn.addEventListener('click', () => modelSigPad && modelSigPad.clear());
+  clearGuardianSigBtn && clearGuardianSigBtn.addEventListener('click', () => guardianSigPad && guardianSigPad.clear());
 
-  // ---------- THANK-YOU UI ----------
+  // ---------- Thank-you banner ----------
   function showThankYou(text = '✅ Thank you! Your form was submitted.') {
     if (confirmationEl) {
       confirmationEl.textContent = text;
@@ -48,29 +45,26 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------- AGE TOGGLE ----------
+  // ---------- Age toggle ----------
   function updateAgeSections() {
-    const v = (ageSelect?.value || '').toLowerCase();
+    const v = (ageSelect && ageSelect.value || '').toLowerCase();
     if (v === 'no') {
-      childrenSection && (childrenSection.style.display = '');
-      guardianSection && (guardianSection.style.display = '');
+      if (childrenSection) childrenSection.style.display = '';
+      if (guardianSection) guardianSection.style.display = '';
     } else {
-      childrenSection && (childrenSection.style.display = 'none');
-      guardianSection && (guardianSection.style.display = 'none');
+      if (childrenSection) childrenSection.style.display = 'none';
+      if (guardianSection) guardianSection.style.display = 'none';
     }
   }
-  ageSelect?.addEventListener('change', updateAgeSections);
-  updateAgeSections();
+  if (ageSelect) { ageSelect.addEventListener('change', updateAgeSections); updateAgeSections(); }
 
-  // ---------- OFFLINE QUEUE ----------
+  // ---------- Offline queue (text + signatures only) ----------
   const QUEUE_KEY = 'releaseFormQueue_v1';
-
   function enqueue(obj) {
     const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
     q.push(obj);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
   }
-
   async function flushQueue() {
     const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
     if (!q.length) return;
@@ -90,52 +84,53 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('online', flushQueue);
   flushQueue();
 
-  // ---------- SUBMIT HANDLER (POST; no GET/414) ----------
-     form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // ---------- Submit (POST; no GET/414) ----------
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-    // Stamp signature date (local time)
-    if (signatureDate) {
-      const now = new Date();
-      signatureDate.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    }
-
-    // Capture signatures to hidden fields (JPEG smaller than PNG)
-    if (modelHidden && modelSigPad && !modelSigPad.isEmpty()) {
-      modelHidden.value = modelSigPad.toDataURL('image/jpeg', 0.85);
-    } else if (modelHidden) {
-      modelHidden.value = '';
-    }
-
-    if (guardianHidden) {
-      if (guardianSection && guardianSection.style.display !== 'none' &&
-          guardianSigPad && !guardianSigPad.isEmpty()) {
-        guardianHidden.value = guardianSigPad.toDataURL('image/jpeg', 0.85);
-      } else {
-        guardianHidden.value = '';
+      // Timestamp
+      if (signatureDate) {
+        const now = new Date();
+        signatureDate.value =
+          `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ` +
+          `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       }
-    }
 
-    const fd = new FormData(form);
-    const payloadObj = Object.fromEntries(fd.entries());
+      // Signatures -> hidden (JPEG smaller than PNG)
+      if (modelHidden) {
+        modelHidden.value = (modelSigPad && !modelSigPad.isEmpty())
+          ? modelSigPad.toDataURL('image/jpeg', 0.85)
+          : '';
+      }
+      if (guardianHidden) {
+        guardianHidden.value = (guardianSection && guardianSection.style.display !== 'none' &&
+                                guardianSigPad && !guardianSigPad.isEmpty())
+          ? guardianSigPad.toDataURL('image/jpeg', 0.85)
+          : '';
+      }
 
-    try {
-      const resp = await fetch(ENDPOINT, { method: 'POST', body: fd });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Build payload
+      const fd = new FormData(form);
+      const payloadObj = Object.fromEntries(fd.entries()); // for offline queue
 
-      form.reset();
-      updateAgeSections();
-      modelSigPad?.clear?.();
-      guardianSigPad?.clear?.();
-      showThankYou('✅ Thank you! Submitted successfully.');
-    } catch (err) {
-      enqueue(payloadObj);
-      form.reset();
-      updateAgeSections();
-      modelSigPad?.clear?.();
-      guardianSigPad?.clear?.();
-      showThankYou('📶 Saved offline. I’ll auto-send when you’re back online.');
-    }
-  });
+      try {
+        const resp = await fetch(ENDPOINT, { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-}); // <-- closes the DOMContentLoaded wrapper
+        form.reset();
+        updateAgeSections();
+        modelSigPad && modelSigPad.clear();
+        guardianSigPad && guardianSigPad.clear();
+        showThankYou('✅ Thank you! Submitted successfully.');
+      } catch (err) {
+        enqueue(payloadObj); // NOTE: headshot file is NOT queued offline
+        form.reset();
+        updateAgeSections();
+        modelSigPad && modelSigPad.clear();
+        guardianSigPad && guardianSigPad.clear();
+        showThankYou('📶 Saved offline. I’ll auto-send when you’re back online.');
+      }
+    });
+  }
+});
