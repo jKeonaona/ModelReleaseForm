@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>WildPx Model Release</title>
+
   <style>
     body {
       margin: 0;
@@ -119,38 +120,58 @@
 
   <!-- Signature Pad library -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+
+  <!-- EmailJS (required for sending emails) -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script>
+    (function () {
+      // Your EmailJS Public Key
+      emailjs.init({ publicKey: "ZL6bzLecBAW63-WVz" });
+    })();
+  </script>
 </head>
+
 <body>
   <div class="overlay">
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
-<!-- Step 3: Confirmation message box -->
-<div id="confirmationMessage" style="display: none; color: lime; text-align: center; margin-top: 20px;"></div>
+
+    <!-- ✅ Single confirmation message element -->
+    <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
+
     <form id="releaseForm">
       <label>Full Name:
         <input type="text" name="fullName" required />
       </label>
+
       <label>Address Line 1:
         <input type="text" name="address1" />
       </label>
+
       <label>Address Line 2:
         <input type="text" name="address2" />
       </label>
+
       <label>City:
         <input type="text" name="city" />
       </label>
+
       <label>State:
         <input type="text" name="state" />
       </label>
+
       <label>Zip Code:
         <input type="text" name="zip" />
       </label>
+
       <label>Phone:
         <input type="text" name="phone" />
       </label>
+
       <label>Email:
         <input type="email" name="email" />
       </label>
+
       <label>Are you at least 18 years of age?
         <select id="ageCheck" name="ageCheck" required>
           <option value="">Select</option>
@@ -209,67 +230,9 @@
 
       <button type="submit">Submit</button>
     </form>
-
-    <!-- ✅ Confirmation message -->
-    <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
   </div>
 
+  <!-- One and only script include -->
   <script src="script.js"></script>
-  <script>
-  const form = document.getElementById('releaseForm');
-  const confirmation = document.getElementById('confirmationMessage');
-
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-
-    confirmation.textContent = '';
-    confirmation.style.display = 'none';
-
-    const formData = new FormData(form);
-
-    // Convert signature canvases to base64 and append to formData
-    const modelSignature = document.getElementById('modelSignature').toDataURL();
-    formData.append('modelSignature', modelSignature);
-
-    const guardianSignatureField = document.getElementById('guardianSignature');
-    if (guardianSignatureField) {
-      const guardianSignature = guardianSignatureField.toDataURL();
-      formData.append('guardianSignature', guardianSignature);
-    }
-
-    // Get uploaded image (if any)
-    const imageInput = document.getElementById('imageUpload');
-    if (imageInput.files.length > 0) {
-      formData.append('image', imageInput.files[0]);
-    }
-
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      if (response.ok) {
-        confirmation.textContent = 'Thank you! Your form was submitted successfully.';
-        confirmation.style.display = 'block';
-
-        setTimeout(() => {
-          form.reset();
-          confirmation.style.display = 'none';
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 5000);
-      } else {
-        confirmation.textContent = 'Something went wrong. Please try again.';
-        confirmation.style.display = 'block';
-      }
-    } catch (error) {
-      confirmation.textContent = 'Error submitting form. Please check your internet connection.';
-      confirmation.style.display = 'block';
-    }
-  });
-</script>
 </body>
 </html>
