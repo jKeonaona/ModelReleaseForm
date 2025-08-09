@@ -1,13 +1,24 @@
-// ===== CONFIG =====
-const APPS_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec';
+// ===== EMAILJS CONFIG (FILL THESE) =====
+const EMAILJS_PUBLIC_KEY = 'ZL6bzLecBAW63-WVz';
+const EMAILJS_SERVICE_ID = 'service_xpgramm';
+const EMAILJS_TEMPLATE_ID = 'template_xsg9cft';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Loads EmailJS SDK without editing index.html
+function loadEmailJS() {
+  return new Promise((resolve, reject) => {
+    if (window.emailjs) return resolve();
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('EmailJS SDK failed to load'));
+    document.head.appendChild(s);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   // Elements
   const form = document.getElementById('releaseForm');
-  // There are TWO #confirmationMessage in your HTML — handle both safely:
   const confirmations = Array.from(document.querySelectorAll('#confirmationMessage'));
-
   const ageSelect = document.getElementById('ageCheck');
   const guardianSection = document.getElementById('guardianSection');
   const childrenSection = document.getElementById('childrenSection');
@@ -17,10 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const modelSigField = document.getElementById('modelSignatureData');
   const guardianSigField = document.getElementById('guardianSignatureData');
-
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
-  // ===== Helpers =====
+  // ------- small helpers -------
   function showConfirm(text) {
     confirmations.forEach(el => {
       if (!el) return;
@@ -35,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
       el.textContent = '';
     });
   }
-
   function setTodayIfBlank() {
     if (!signatureDateInput) return;
     if (!signatureDateInput.value) {
@@ -46,19 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
       signatureDateInput.value = `${yyyy}-${mm}-${dd}`;
     }
   }
-
   function resizeCanvas(canvas, pad) {
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio); // match CSS height
+    canvas.height = Math.floor(150 * ratio);
     const ctx = canvas.getContext('2d');
     ctx.scale(ratio, ratio);
     pad?.clear();
   }
 
-  // ===== Signature pads =====
+  // ------- signature pads -------
   let modelPad = null;
   let guardianPad = null;
 
@@ -66,12 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     modelPad = new SignaturePad(modelCanvas, { penColor: '#000' });
     resizeCanvas(modelCanvas, modelPad);
   }
-
   function ensureGuardianPad() {
     if (!guardianCanvas) return;
-    if (!guardianPad) {
-      guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
-    }
+    if (!guardianPad) guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
     resizeCanvas(guardianCanvas, guardianPad);
   }
 
@@ -82,20 +87,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Clear buttons referenced inline in HTML
   window.clearModelSig = () => { modelPad?.clear(); };
   window.clearGuardianSig = () => {
     if (guardianSection?.style.display !== 'none') ensureGuardianPad();
     guardianPad?.clear();
   };
 
-  // ===== Age toggle =====
+  // ------- age toggle -------
   function updateMinorUI() {
     const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
     if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
     if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
 
-    // Toggle requireds for guardian fields
     const gName = form.querySelector('input[name="guardianName"]');
     const gRel  = form.querySelector('input[name="guardianRelationship"]');
     if (gName) gName.required = isMinor;
@@ -106,51 +109,52 @@ document.addEventListener('DOMContentLoaded', () => {
   ageSelect?.addEventListener('change', updateMinorUI);
   updateMinorUI();
 
-  // ===== Submit (capture phase to suppress any other handlers) =====
+  // ------- EmailJS init -------
+  try {
+    await loadEmailJS();
+    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  } catch (err) {
+    console.error(err);
+    // We can still allow local UI to function; submit will show an error if tried.
+  }
+
+  // ------- submit via EmailJS -------
   form.addEventListener('submit', async (e) => {
-    // Stop any other submit listeners attached elsewhere in the page
     e.preventDefault();
     e.stopImmediatePropagation();
 
     hideConfirm();
     setTodayIfBlank();
 
-    // Copy signatures to hidden fields (JPEG smaller than PNG)
+    // Move signatures into hidden fields BEFORE sendForm
     if (modelSigField && modelPad) {
       modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
     }
     if (guardianSigField) {
       const needGuardian = guardianSection?.style.display !== 'none';
-      guardianSigField.value = (needGuardian && guardianPad && !guardianPad.isEmpty())
-        ? guardianPad.toDataURL('image/jpeg', 0.85)
-        : '';
+      guardianSigField.value =
+        (needGuardian && guardianPad && !guardianPad.isEmpty())
+          ? guardianPad.toDataURL('image/jpeg', 0.85)
+          : '';
     }
 
-    const fd = new FormData(form); // includes headshot file automatically
-
+    // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
     try {
-      const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: fd });
+      if (!window.emailjs) throw new Error('EmailJS not loaded');
+      await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
 
-      if (resp.ok) {
-        showConfirm('✅ Thank you! Your form was submitted.');
-        setTimeout(() => {
-          form.reset();
-          modelPad?.clear();
-          guardianPad?.clear?.();
-          hideConfirm();
-          updateMinorUI(); // re-hide sections
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 5000);
-      } else {
-        let msg = '⚠️ Submission failed. Please try again.';
-        try {
-          const t = await resp.text();
-          if (t) msg = `⚠️ Submission failed: ${t.slice(0, 160)}…`;
-        } catch {}
-        showConfirm(msg);
-      }
+      showConfirm('✅ Thank you! Your form was submitted.');
+      setTimeout(() => {
+        form.reset();
+        modelPad?.clear();
+        guardianPad?.clear?.();
+        hideConfirm();
+        updateMinorUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 5000);
     } catch (err) {
-      showConfirm('⚠️ Offline or server error. Please reconnect and try again.');
+      console.error(err);
+      showConfirm('⚠️ Email failed. Check EmailJS keys/service/template and try again.');
     }
-  }, { capture: true }); // capture=true so our handler wins
+  }, { capture: true });
 });
