@@ -1,90 +1,156 @@
-document.addEventListener("DOMContentLoaded", function () {
+// ===== CONFIG =====
+const APPS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec';
+
+document.addEventListener('DOMContentLoaded', () => {
   // Elements
-  const form = document.getElementById("releaseForm");
-  const ageSelect = document.getElementById("ageCheck");
-  const guardianSection = document.getElementById("guardianSection");
-  const childrenSection = document.getElementById("childrenSection");
-  const msg = document.getElementById("confirmationMessage");
+  const form = document.getElementById('releaseForm');
+  // There are TWO #confirmationMessage in your HTML — handle both safely:
+  const confirmations = Array.from(document.querySelectorAll('#confirmationMessage'));
 
-  const modelCanvas = document.getElementById("modelSignatureCanvas");
-  const guardianCanvas = document.getElementById("guardianSignatureCanvas");
-  const modelSigField = document.getElementById("modelSignatureData");
-  const guardianSigField = document.getElementById("guardianSignatureData");
+  const ageSelect = document.getElementById('ageCheck');
+  const guardianSection = document.getElementById('guardianSection');
+  const childrenSection = document.getElementById('childrenSection');
 
-  // --- Helpers ---
-  function resizeCanvas(canvas) {
+  const modelCanvas = document.getElementById('modelSignatureCanvas');
+  const guardianCanvas = document.getElementById('guardianSignatureCanvas');
+
+  const modelSigField = document.getElementById('modelSignatureData');
+  const guardianSigField = document.getElementById('guardianSignatureData');
+
+  const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+
+  // ===== Helpers =====
+  function showConfirm(text) {
+    confirmations.forEach(el => {
+      if (!el) return;
+      el.textContent = text || '✅ Thank you! Your form was submitted.';
+      el.style.display = 'block';
+    });
+  }
+  function hideConfirm() {
+    confirmations.forEach(el => {
+      if (!el) return;
+      el.style.display = 'none';
+      el.textContent = '';
+    });
+  }
+
+  function setTodayIfBlank() {
+    if (!signatureDateInput) return;
+    if (!signatureDateInput.value) {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      signatureDateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  function resizeCanvas(canvas, pad) {
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    if (!w || !h) return;
-    canvas.width = w * ratio;
-    canvas.height = h * ratio;
-    canvas.getContext("2d").scale(ratio, ratio);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * ratio);
+    canvas.height = Math.floor(150 * ratio); // match CSS height
+    const ctx = canvas.getContext('2d');
+    ctx.scale(ratio, ratio);
+    pad?.clear();
   }
 
-  // Model signature pad (init immediately; canvas is visible)
-  resizeCanvas(modelCanvas);
-  const modelPad = new SignaturePad(modelCanvas);
-
-  // Guardian signature pad (lazy-init only when section is visible)
+  // ===== Signature pads =====
+  let modelPad = null;
   let guardianPad = null;
+
+  if (modelCanvas) {
+    modelPad = new SignaturePad(modelCanvas, { penColor: '#000' });
+    resizeCanvas(modelCanvas, modelPad);
+  }
+
   function ensureGuardianPad() {
-    if (!guardianPad && guardianCanvas) {
-      resizeCanvas(guardianCanvas);            // make sure canvas has size
-      guardianPad = new SignaturePad(guardianCanvas);
+    if (!guardianCanvas) return;
+    if (!guardianPad) {
+      guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
     }
+    resizeCanvas(guardianCanvas, guardianPad);
   }
 
-  // Show/hide sections based on age
-  function updateMinorUI() {
-    const isMinor = ageSelect && ageSelect.value === "no";
-    if (guardianSection) guardianSection.style.display = isMinor ? "block" : "none";
-    if (childrenSection) childrenSection.style.display = isMinor ? "block" : "none";
+  window.addEventListener('resize', () => {
+    if (modelCanvas && modelPad) resizeCanvas(modelCanvas, modelPad);
+    if (guardianSection?.style.display !== 'none' && guardianCanvas && guardianPad) {
+      resizeCanvas(guardianCanvas, guardianPad);
+    }
+  });
 
-    // Initialize guardian pad only after it's visible (next tick so layout applies)
-    if (isMinor) setTimeout(ensureGuardianPad, 0);
-  }
-
-  if (ageSelect) {
-    ageSelect.addEventListener("change", updateMinorUI);
-    // Apply on load in case a value is pre-selected
-    updateMinorUI();
-  }
-
-  // Clear buttons called by HTML onclick
-  window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
+  // Clear buttons referenced inline in HTML
+  window.clearModelSig = () => { modelPad?.clear(); };
   window.clearGuardianSig = () => {
-    // If user taps clear before we've inited (rare), init first
-    if (guardianSection && guardianSection.style.display !== "none") ensureGuardianPad();
-    if (guardianPad) guardianPad.clear();
+    if (guardianSection?.style.display !== 'none') ensureGuardianPad();
+    guardianPad?.clear();
   };
 
-  // Submit: save signatures to hidden inputs, show thank-you, reset
-  form.addEventListener("submit", function (e) {
+  // ===== Age toggle =====
+  function updateMinorUI() {
+    const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
+    if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
+    if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
+
+    // Toggle requireds for guardian fields
+    const gName = form.querySelector('input[name="guardianName"]');
+    const gRel  = form.querySelector('input[name="guardianRelationship"]');
+    if (gName) gName.required = isMinor;
+    if (gRel)  gRel.required  = isMinor;
+
+    if (isMinor) ensureGuardianPad();
+  }
+  ageSelect?.addEventListener('change', updateMinorUI);
+  updateMinorUI();
+
+  // ===== Submit (capture phase to suppress any other handlers) =====
+  form.addEventListener('submit', async (e) => {
+    // Stop any other submit listeners attached elsewhere in the page
     e.preventDefault();
+    e.stopImmediatePropagation();
 
-    // Capture signatures safely
-    modelSigField.value = (modelPad && !modelPad.isEmpty()) ? modelPad.toDataURL() : "";
-    guardianSigField.value = (guardianPad && !guardianPad.isEmpty()) ? guardianPad.toDataURL() : "";
+    hideConfirm();
+    setTodayIfBlank();
 
-    if (msg) {
-      msg.textContent = "✅ Thank you! Your form was submitted.";
-      msg.style.display = "block";
+    // Copy signatures to hidden fields (JPEG smaller than PNG)
+    if (modelSigField && modelPad) {
+      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
+    }
+    if (guardianSigField) {
+      const needGuardian = guardianSection?.style.display !== 'none';
+      guardianSigField.value = (needGuardian && guardianPad && !guardianPad.isEmpty())
+        ? guardianPad.toDataURL('image/jpeg', 0.85)
+        : '';
     }
 
-    // Reset everything after a brief pause
-    setTimeout(() => {
-      form.reset();
-      modelPad && modelPad.clear();
-      guardianPad && guardianPad.clear();
-      if (msg) msg.style.display = "none";
-      // Hide guardian/children again until "No" is selected
-      if (guardianSection) guardianSection.style.display = "none";
-      if (childrenSection) childrenSection.style.display = "none";
-      // Focus the first field
-      const first = form.querySelector('input[name="fullName"]');
-      if (first) first.focus();
-    }, 1200);
-  });
+    const fd = new FormData(form); // includes headshot file automatically
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: fd });
+
+      if (resp.ok) {
+        showConfirm('✅ Thank you! Your form was submitted.');
+        setTimeout(() => {
+          form.reset();
+          modelPad?.clear();
+          guardianPad?.clear?.();
+          hideConfirm();
+          updateMinorUI(); // re-hide sections
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 5000);
+      } else {
+        let msg = '⚠️ Submission failed. Please try again.';
+        try {
+          const t = await resp.text();
+          if (t) msg = `⚠️ Submission failed: ${t.slice(0, 160)}…`;
+        } catch {}
+        showConfirm(msg);
+      }
+    } catch (err) {
+      showConfirm('⚠️ Offline or server error. Please reconnect and try again.');
+    }
+  }, { capture: true }); // capture=true so our handler wins
 });
