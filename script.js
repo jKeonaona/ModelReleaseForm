@@ -1,9 +1,9 @@
-// ===== EMAILJS CONFIG (FILL THESE) =====
+// ===== EMAILJS CONFIG (YOUR VALUES) =====
 const EMAILJS_PUBLIC_KEY = 'ZL6bzLecBAW63-WVz';
 const EMAILJS_SERVICE_ID = 'service_xpgramm';
 const EMAILJS_TEMPLATE_ID = 'template_xsg9cft';
 
-// Loads EmailJS SDK without editing index.html
+// Load EmailJS SDK without editing index.html
 function loadEmailJS() {
   return new Promise((resolve, reject) => {
     if (window.emailjs) return resolve();
@@ -30,24 +30,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const guardianSigField = document.getElementById('guardianSignatureData');
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
-  // ------- small helpers -------
+  // --- helpers ---
   function showConfirm(text) {
     confirmations.forEach(el => {
-      if (!el) return;
       el.textContent = text || '✅ Thank you! Your form was submitted.';
       el.style.display = 'block';
     });
   }
   function hideConfirm() {
-    confirmations.forEach(el => {
-      if (!el) return;
-      el.style.display = 'none';
-      el.textContent = '';
-    });
+    confirmations.forEach(el => { el.style.display = 'none'; el.textContent = ''; });
   }
   function setTodayIfBlank() {
-    if (!signatureDateInput) return;
-    if (!signatureDateInput.value) {
+    if (!signatureDateInput?.value) {
       const d = new Date();
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -60,13 +54,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio);
+    canvas.height = Math.floor(150 * ratio); // match CSS height
     const ctx = canvas.getContext('2d');
     ctx.scale(ratio, ratio);
     pad?.clear();
   }
 
-  // ------- signature pads -------
+  // --- signature pads ---
   let modelPad = null;
   let guardianPad = null;
 
@@ -79,7 +73,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!guardianPad) guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
     resizeCanvas(guardianCanvas, guardianPad);
   }
-
   window.addEventListener('resize', () => {
     if (modelCanvas && modelPad) resizeCanvas(modelCanvas, modelPad);
     if (guardianSection?.style.display !== 'none' && guardianCanvas && guardianPad) {
@@ -87,76 +80,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Clear buttons used in HTML
   window.clearModelSig = () => { modelPad?.clear(); };
-  window.clearGuardianSig = () => {
-    if (guardianSection?.style.display !== 'none') ensureGuardianPad();
-    guardianPad?.clear();
-  };
+  window.clearGuardianSig = () => { if (guardianSection?.style.display !== 'none') ensureGuardianPad(); guardianPad?.clear(); };
 
-  // ------- age toggle -------
+  // --- age toggle ---
   function updateMinorUI() {
     const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
     if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
     if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
-
     const gName = form.querySelector('input[name="guardianName"]');
     const gRel  = form.querySelector('input[name="guardianRelationship"]');
     if (gName) gName.required = isMinor;
     if (gRel)  gRel.required  = isMinor;
-
     if (isMinor) ensureGuardianPad();
   }
-  ageSelect?.addEventListener('change', updateMinorUI);
-  updateMinorUI();
-
-  // ------- EmailJS init -------
-  try {
-    await loadEmailJS();
-    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-  } catch (err) {
-    console.error(err);
-    // We can still allow local UI to function; submit will show an error if tried.
-  }
-
-  // ------- submit via EmailJS -------
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-
-    hideConfirm();
-    setTodayIfBlank();
-
-    // Move signatures into hidden fields BEFORE sendForm
-    if (modelSigField && modelPad) {
-      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
-    }
-    if (guardianSigField) {
-      const needGuardian = guardianSection?.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
-    }
-
-    // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
-    try {
-      if (!window.emailjs) throw new Error('EmailJS not loaded');
-      await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
-
-      showConfirm('✅ Thank you! Your form was submitted.');
-      setTimeout(() => {
-        form.reset();
-        modelPad?.clear();
-        guardianPad?.clear?.();
-        hideConfirm();
-        updateMinorUI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 5000);
-   } catch (err) {
-      console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
-      const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
-      showConfirm('⚠️ Email failed. Check EmailJS keys/service/template and try again.' + reason);
-    }
-  }, { capture: true });
-});
-
+  ageSelect?.addEv
