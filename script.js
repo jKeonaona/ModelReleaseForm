@@ -144,7 +144,13 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
     try {
       if (!window.emailjs) throw new Error('EmailJS not loaded');
-      await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
+     await window.emailjs.sendForm(
+  EMAILJS_SERVICE_ID,
+  EMAILJS_TEMPLATE_ID,
+  form,
+  { publicKey: EMAILJS_PUBLIC_KEY.trim() }
+);
+
 
       showConfirm('✅ Thank you! Your form was submitted.');
       setTimeout(() => {
@@ -162,6 +168,7 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
   }, { capture: true });
 });
+
 
 
 
