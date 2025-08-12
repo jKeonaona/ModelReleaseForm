@@ -113,32 +113,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Send form data to Google Apps Script
-    try {
-      const response = await fetch('https://script.google.com/macros/s/YOUR_EXEC_URL_HERE/exec', {
-        method: 'POST',
-        body: new FormData(form),
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-      const result = await response.json();
-      console.log('GAS response:', response.status, result);
-      if (!response.ok) {
-        throw new Error(result.message || 'Submission failed');
-      }
-      showConfirm('✅ Thank you! Your form was submitted.');
-      setTimeout(() => {
-        form.reset();
-        modelPad?.clear();
-        guardianPad?.clear?.();
-        hideConfirm();
-        updateMinorUI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 5000);
-    } catch (err) {
-      console.error('Submission error:', err);
-      showConfirm('❌ Failed to submit form. Please try again.');
-    }
+   // Send to Google Apps Script (no EmailJS)
+try {
+  await fetch('https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec', {
+    method: 'POST',
+    body: new FormData(form),
+    mode: 'no-cors' // avoid browser CORS block
+  });
+
+  // We can't read a response in no-cors mode; just show success UI
+  showConfirm('✅ Thank you! Your form was submitted.');
+  setTimeout(() => {
+    form.reset();
+    modelPad?.clear();
+    guardianPad?.clear?.();
+    hideConfirm();
+    updateMinorUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 5000);
+} catch (err) {
+  console.error('Google Script submit failed:', err);
+  alert('Submission failed. Please try again.');
+}
   }, { capture: true });
 });
+
