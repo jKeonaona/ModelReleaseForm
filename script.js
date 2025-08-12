@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (gRel)  gRel.required  = isMinor;
     if (isMinor) initGuardianPad();
   }
-  ageSelect?.addEventListener('change', updateMinorUI);
-  updateMinorUI();
+  ageSelect.addEventListener('change', updateMinorUI);
+
 
   // EmailJS
   try {
@@ -176,4 +176,5 @@ form.addEventListener('submit', async (e) => {
     if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
   }
 }, { capture: true });
+
 
