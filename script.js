@@ -144,26 +144,28 @@ form.addEventListener('submit', async (e) => {
 
     // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
   try {
-    await fetch('https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec', {
-  method: 'POST',
-  body: new FormData(form)
-});
-      showConfirm('✅ Thank you! Your form was submitted.');
-      setTimeout(() => {
-        form.reset();
-        modelPad?.clear();
-        guardianPad?.clear?.();
-        hideConfirm();
-        updateMinorUI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 5000);
-   } catch (err) {
-  console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
-  const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
-  alert('Email failed.' + reason); // temporary: show exact reason
-}
+  const r = await fetch('https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec', {
+    method: 'POST',
+    body: new FormData(form)
+  });
+  const t = await r.text();
+  console.log('GAS response:', r.status, t);
+  if (!r.ok) { alert('Google Script error: ' + t); return; }
+
+  showConfirm('✅ Thank you! Your form was submitted.');
+  setTimeout(() => {
+    form.reset();
+    modelPad?.clear();
+    guardianPad?.clear?.();
+    hideConfirm();
+    updateMinorUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 5000);
+} catch (err) {
+  console.error('E
   }, { capture: true });
 });
+
 
 
 
