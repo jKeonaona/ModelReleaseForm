@@ -115,7 +115,7 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   // ------- EmailJS init -------
   try {
     await loadEmailJS();
-    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+   window.emailjs.init(EMAILJS_PUBLIC_KEY.trim());
   } catch (err) {
     console.error(err);
     // We can still allow local UI to function; submit will show an error if tried.
@@ -162,5 +162,6 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
   }, { capture: true });
 });
+
 
 
