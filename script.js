@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmation.style.display = 'none';
     confirmation.textContent = '';
   }
-   function setTodayIfBlank() 
+   function setTodayIfBlank() {
   // Do NOT prefill on page load. Only set if user left it empty at submit.
   if (!signatureDateInput || signatureDateInput.value) return;
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -182,6 +182,7 @@ form.addEventListener('submit', async (e) => {
     if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
   }
 }, { capture: true });
+
 
 
 
