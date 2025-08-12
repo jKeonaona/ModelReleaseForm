@@ -1,20 +1,3 @@
-// ===== EMAILJS CONFIG (FILL THESE) =====
-const EMAILJS_PUBLIC_KEY = 'HmCo7TY_HYL8r7Buq';
-const EMAILJS_SERVICE_ID = 'service_xpgramm';
-const EMAILJS_TEMPLATE_ID = 'template_xsg9cft';
-
-// Loads EmailJS SDK without editing index.html
-function loadEmailJS() {
-  return new Promise((resolve, reject) => {
-    if (window.emailjs) return resolve();
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('EmailJS SDK failed to load'));
-    document.head.appendChild(s);
-  });
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
   // Elements
   const form = document.getElementById('releaseForm');
@@ -29,9 +12,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modelSigField = document.getElementById('modelSignatureData');
   const guardianSigField = document.getElementById('guardianSignatureData');
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
-  await loadEmailJS();
-window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-
 
   // ------- small helpers -------
   function showConfirm(text) {
@@ -103,34 +83,24 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
 
     const gName = form.querySelector('input[name="guardianName"]');
-    const gRel  = form.querySelector('input[name="guardianRelationship"]');
+    const gRel = form.querySelector('input[name="guardianRelationship"]');
     if (gName) gName.required = isMinor;
-    if (gRel)  gRel.required  = isMinor;
+    if (gRel) gRel.required = isMinor;
 
     if (isMinor) ensureGuardianPad();
   }
   ageSelect?.addEventListener('change', updateMinorUI);
   updateMinorUI();
 
-  // ------- EmailJS init -------
-  try {
-    await loadEmailJS();
-   window.emailjs.init(EMAILJS_PUBLIC_KEY.trim());
-  } catch (err) {
-    console.error(err);
-    // We can still allow local UI to function; submit will show an error if tried.
-  }
-
-  // ------- submit via EmailJS -------
-  console.log('EmailJS key at runtime:', EMAILJS_PUBLIC_KEY);
-form.addEventListener('submit', async (e) => {
+  // ------- submit to Google Apps Script -------
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
 
     hideConfirm();
     setTodayIfBlank();
 
-    // Move signatures into hidden fields BEFORE sendForm
+    // Move signatures into hidden fields
     if (modelSigField && modelPad) {
       modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
     }
@@ -142,39 +112,33 @@ form.addEventListener('submit', async (e) => {
           : '';
     }
 
-    // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
-  try {
-  const r = await fetch('https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec', {
-    method: 'POST',
-    body: new FormData(form)
-  });
-  const t = await r.text();
-  console.log('GAS response:', r.status, t);
-  if (!r.ok) { alert('Google Script error: ' + t); return; }
-
-  showConfirm('✅ Thank you! Your form was submitted.');
-  setTimeout(() => {
-    form.reset();
-    modelPad?.clear();
-    guardianPad?.clear?.();
-    hideConfirm();
-    updateMinorUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 5000);
-} catch (err) {
-  console.error('E
+    // Send form data to Google Apps Script
+    try {
+      const response = await fetch('https://script.google.com/macros/s/YOUR_EXEC_URL_HERE/exec', {
+        method: 'POST',
+        body: new FormData(form),
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      const result = await response.json();
+      console.log('GAS response:', response.status, result);
+      if (!response.ok) {
+        throw new Error(result.message || 'Submission failed');
+      }
+      showConfirm('✅ Thank you! Your form was submitted.');
+      setTimeout(() => {
+        form.reset();
+        modelPad?.clear();
+        guardianPad?.clear?.();
+        hideConfirm();
+        updateMinorUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 5000);
+    } catch (err) {
+      console.error('Submission error:', err);
+      showConfirm('❌ Failed to submit form. Please try again.');
+    }
   }, { capture: true });
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
