@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modelSigField = document.getElementById('modelSignatureData');
   const guardianSigField = document.getElementById('guardianSignatureData');
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+  await loadEmailJS();
+window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
 
   // ------- small helpers -------
   function showConfirm(text) {
@@ -158,3 +161,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, { capture: true });
 });
+
