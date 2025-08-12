@@ -144,7 +144,8 @@ form.addEventListener('submit', async (e) => {
 
     // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
   try {
-    await fetch('https://script.google.com/macros/s/PASTE_YOUR_GAS_WEB_APP_URL/exec', {
+    await fetch('https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec
+', {
         method: 'POST',
         body: new FormData(form)
     });
@@ -165,6 +166,7 @@ form.addEventListener('submit', async (e) => {
 }
   }, { capture: true });
 });
+
 
 
 
