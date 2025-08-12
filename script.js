@@ -16,7 +16,6 @@ function loadEmailJS() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
   const form = document.getElementById('releaseForm');
   const confirmation = document.getElementById('confirmationMessage');
   const ageSelect = document.getElementById('ageCheck');
@@ -30,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const guardianSigField = document.getElementById('guardianSignatureData');
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
-  // --- helpers ---
+  // helpers
   function showConfirm(text) {
     if (!confirmation) return;
     confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
@@ -54,15 +53,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const rect = canvas.getBoundingClientRect();
-    if (!rect.width) return; // avoid zero-size init
+    if (!rect.width) return;
     canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio); // match CSS height
+    canvas.height = Math.floor(150 * ratio);
     const ctx = canvas.getContext('2d');
     ctx.scale(ratio, ratio);
     pad?.clear();
   }
 
-  // --- signature pads (safe init) ---
+  // signatures
   let modelPad = null;
   let guardianPad = null;
 
@@ -88,11 +87,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Clear buttons used in HTML
   window.clearModelSig = () => { modelPad?.clear(); };
   window.clearGuardianSig = () => { guardianPad?.clear(); };
 
-  // --- age toggle ---
+  // age toggle
   function updateMinorUI() {
     const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
     if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
@@ -106,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ageSelect?.addEventListener('change', updateMinorUI);
   updateMinorUI();
 
-  // --- init EmailJS ---
+  // EmailJS
   try {
     await loadEmailJS();
     if (window.emailjs) {
@@ -118,14 +116,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('EmailJS load/init failed:', e);
   }
 
-  // --- submit via EmailJS ---
+  // submit
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     hideConfirm();
     setTodayIfBlank();
 
-    // capture signatures into hidden fields (JPEG smaller)
     if (modelSigField && modelPad) {
       modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
     }
