@@ -97,7 +97,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // age toggle
 function updateMinorUI() {
-  const isMinor = (ageSelect.value || '').toLowerCase() === 'no'; // <-- no optional chaining
+  const isMinor = ageSelect.value === 'no';
+ // <-- no optional chaining
   guardianSection.style.display = isMinor ? 'block' : 'none';
   childrenSection.style.display = isMinor ? 'block' : 'none';
 
@@ -180,6 +181,7 @@ form.addEventListener('submit', async (e) => {
     if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
   }
 }, { capture: true });
+
 
 
 
