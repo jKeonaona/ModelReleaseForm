@@ -18,7 +18,7 @@ function loadEmailJS() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Elements
   const form = document.getElementById('releaseForm');
-  const confirmations = Array.from(document.querySelectorAll('#confirmationMessage'));
+  const confirmation = document.getElementById('confirmationMessage');
   const ageSelect = document.getElementById('ageCheck');
   const guardianSection = document.getElementById('guardianSection');
   const childrenSection = document.getElementById('childrenSection');
@@ -32,13 +32,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- helpers ---
   function showConfirm(text) {
-    confirmations.forEach(el => {
-      el.textContent = text || '✅ Thank you! Your form was submitted.';
-      el.style.display = 'block';
-    });
+    if (!confirmation) return;
+    confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
+    confirmation.style.display = 'block';
   }
   function hideConfirm() {
-    confirmations.forEach(el => { el.style.display = 'none'; el.textContent = ''; });
+    if (!confirmation) return;
+    confirmation.style.display = 'none';
+    confirmation.textContent = '';
   }
   function setTodayIfBlank() {
     if (!signatureDateInput?.value) {
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return; // avoid zero-size init
     canvas.width = Math.floor(rect.width * ratio);
     canvas.height = Math.floor(150 * ratio); // match CSS height
     const ctx = canvas.getContext('2d');
@@ -60,29 +62,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     pad?.clear();
   }
 
-  // --- signature pads ---
+  // --- signature pads (safe init) ---
   let modelPad = null;
   let guardianPad = null;
 
-  if (modelCanvas) {
-    modelPad = new SignaturePad(modelCanvas, { penColor: '#000' });
+  function initModelPad() {
+    const Sig = window.SignaturePad;
+    if (!Sig || !modelCanvas) return;
+    modelPad = new Sig(modelCanvas, { penColor: '#000' });
     resizeCanvas(modelCanvas, modelPad);
   }
-  function ensureGuardianPad() {
-    if (!guardianCanvas) return;
-    if (!guardianPad) guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
+  function initGuardianPad() {
+    const Sig = window.SignaturePad;
+    if (!Sig || !guardianCanvas) return;
+    if (!guardianPad) guardianPad = new Sig(guardianCanvas, { penColor: '#000' });
     resizeCanvas(guardianCanvas, guardianPad);
   }
+
+  initModelPad();
+
   window.addEventListener('resize', () => {
-    if (modelCanvas && modelPad) resizeCanvas(modelCanvas, modelPad);
-    if (guardianSection?.style.display !== 'none' && guardianCanvas && guardianPad) {
+    if (modelPad) resizeCanvas(modelCanvas, modelPad);
+    if (guardianPad && guardianSection?.style.display !== 'none') {
       resizeCanvas(guardianCanvas, guardianPad);
     }
   });
 
   // Clear buttons used in HTML
   window.clearModelSig = () => { modelPad?.clear(); };
-  window.clearGuardianSig = () => { if (guardianSection?.style.display !== 'none') ensureGuardianPad(); guardianPad?.clear(); };
+  window.clearGuardianSig = () => { guardianPad?.clear(); };
 
   // --- age toggle ---
   function updateMinorUI() {
@@ -93,6 +101,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gRel  = form.querySelector('input[name="guardianRelationship"]');
     if (gName) gName.required = isMinor;
     if (gRel)  gRel.required  = isMinor;
-    if (isMinor) ensureGuardianPad();
+    if (isMinor) initGuardianPad();
   }
-  ageSelect?.addEv
+  ageSelect?.addEventListener('change', updateMinorUI);
+  updateMinorUI();
+
+  // --- init EmailJS ---
+  try {
+    await loadEmailJS();
+    if (window.emailjs) {
+      window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    } else {
+      console.error('EmailJS failed to attach to window');
+    }
+  } catch (e) {
+    console.error('EmailJS load/init failed:', e);
+  }
+
+  // --- submit via EmailJS ---
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    hideConfirm();
+    setTodayIfBlank();
+
+    // capture signatures into hidden fields (JPEG smaller)
+    if (modelSigField && modelPad) {
+      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
+    }
+    if (guardianSigField) {
+      const needGuardian = guardianSection?.style.display !== 'none';
+      guardianSigField.value =
+        (needGuardian && guardianPad && !guardianPad.isEmpty())
+          ? guardianPad.toDataURL('image/jpeg', 0.85)
+          : '';
+    }
+
+    try {
+      if (!window.emailjs) throw new Error('EmailJS not loaded');
+      await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
+
+      showConfirm('✅ Thank you! Your form was submitted.');
+      setTimeout(() => {
+        form.reset();
+        modelPad?.clear();
+        guardianPad?.clear?.();
+        hideConfirm();
+        updateMinorUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 5000);
+    } catch (err) {
+      console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
+      const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
+      showConfirm('⚠️ Email failed. Check EmailJS keys/service/template and try again.' + reason);
+    }
+  }, { capture: true });
+});
