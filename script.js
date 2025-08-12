@@ -4,17 +4,24 @@ const EMAILJS_SERVICE_ID = 'service_xpgramm';
 const EMAILJS_TEMPLATE_ID = 'template_xsg9cft';
 
 // Load EmailJS SDK without editing index.html
-function loadEmailJS() {
-  return new Promise((resolve, reject) => {
-    if (window.emailjs) return resolve();
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('EmailJS SDK failed to load'));
-    document.head.appendChild(s);
-  });
+async function loadEmailJS() {
+  // Try jsdelivr, then fallback to EmailJS CDN
+  function inject(src) {
+    return new Promise((resolve, reject) => {
+      if (window.emailjs) return resolve();
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  try {
+    await inject('https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js');
+  } catch {
+    await inject('https://cdn.emailjs.com/dist/email.min.js');
+  }
 }
-
 document.addEventListener('DOMContentLoaded', async () => {
   const form = document.getElementById('releaseForm');
   const confirmation = document.getElementById('confirmationMessage');
@@ -40,14 +47,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmation.style.display = 'none';
     confirmation.textContent = '';
   }
-  function setTodayIfBlank() {
-    if (!signatureDateInput?.value) {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      signatureDateInput.value = `${yyyy}-${mm}-${dd}`;
-    }
+   function setTodayIfBlank() {
+  // Do NOT prefill on page load. Only set if user left it empty at submit.
+  if (!signatureDateInput || signatureDateInput.value) return;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  signatureDateInput.value = today;
+}
   }
   function resizeCanvas(canvas, pad) {
     if (!canvas) return;
@@ -116,40 +121,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('EmailJS load/init failed:', e);
   }
 
-  // submit
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    hideConfirm();
-    setTodayIfBlank();
+ // submit  (REPLACE YOUR WHOLE SUBMIT BLOCK WITH THIS)
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
 
-    if (modelSigField && modelPad) {
-      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
-    }
-    if (guardianSigField) {
-      const needGuardian = guardianSection?.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
-    }
+  console.log('[Submit] handler started');
 
-    try {
-      if (!window.emailjs) throw new Error('EmailJS not loaded');
-      await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
+  hideConfirm();
 
-      showConfirm('✅ Thank you! Your form was submitted.');
-      setTimeout(() => {
-        form.reset();
-        modelPad?.clear();
-        guardianPad?.clear?.();
-        hideConfirm();
-        updateMinorUI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 5000);
-    } catch (err) {
-      console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
-      const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
-      showConfirm('⚠️ Email failed. Check EmailJS keys/service/template and try again.' + reason);
-    }
-  }, { capture: true });
-});
+  // If date is empty, set it to today (YYYY-MM-DD) right now
+  if (signatureDateInput && !signatureDateInput.value) {
+    const today = new Date().toISOString().slice(0, 10);
+    signatureDateInput.value = today;
+  }
+
+  // Capture signatures into hidden fields (JPEG is smaller)
+  if (modelSigField && modelPad) {
+    modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
+  }
+  if (guardianSigField) {
+    const needGuardian = guardianSection?.style.display !== 'none';
+    guardianSigField.value =
+      (needGuardian && guardianPad && !guardianPad.isEmpty())
+        ? guardianPad.toDataURL('image/jpeg', 0.85)
+        : '';
+  }
+
+  // Prevent double-submits
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+  try {
+    if (!window.emailjs) throw new Error('EmailJS not loaded');
+    console.log('[Submit] EmailJS ready?', typeof window.emailjs, window.emailjs && window.emailjs.__version);
+
+    await window.emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
+
+    console.log('[Submit] sendForm success');
+    showConfirm('✅ Thank you! Your form was submitted.');
+
+    setTimeout(() => {
+      form.reset();
+      modelPad?.clear();
+      guardianPad?.clear?.();
+      hideConfirm();
+      updateMinorUI();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 4000);
+  } catch (err) {
+    console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
+    const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
+    showConfirm('⚠️ Email failed. ' + reason);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+  }
+}, { capture: true });
