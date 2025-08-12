@@ -113,6 +113,8 @@ function updateMinorUI() {
 ageSelect.addEventListener('change', updateMinorUI);
 ageSelect.addEventListener('input', updateMinorUI);
 updateMinorUI(); // run once on load
+form.addEventListener('change', (e) => { if (e.target && e.target.id === 'ageCheck') updateMinorUI(); });
+
 
 
   // EmailJS
@@ -182,6 +184,7 @@ form.addEventListener('submit', async (e) => {
     if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
   }
 }, { capture: true });
+
 
 
 
