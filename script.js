@@ -96,17 +96,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.clearGuardianSig = () => { guardianPad?.clear(); };
 
   // age toggle
-  function updateMinorUI() {
-    const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
-    if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
-    if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
-    const gName = form.querySelector('input[name="guardianName"]');
-    const gRel  = form.querySelector('input[name="guardianRelationship"]');
-    if (gName) gName.required = isMinor;
-    if (gRel)  gRel.required  = isMinor;
-    if (isMinor) initGuardianPad();
-  }
-  ageSelect.addEventListener('change', updateMinorUI);
+function updateMinorUI() {
+  const isMinor = (ageSelect.value || '').toLowerCase() === 'no'; // <-- no optional chaining
+  guardianSection.style.display = isMinor ? 'block' : 'none';
+  childrenSection.style.display = isMinor ? 'block' : 'none';
+
+  const gName = form.querySelector('input[name="guardianName"]');
+  const gRel  = form.querySelector('input[name="guardianRelationship"]');
+  if (gName) gName.required = isMinor;
+  if (gRel)  gRel.required  = isMinor;
+
+  if (isMinor) initGuardianPad();
+}
+
+ageSelect.addEventListener('change', updateMinorUI);
+updateMinorUI(); // run once on load
 
 
   // EmailJS
@@ -176,5 +180,6 @@ form.addEventListener('submit', async (e) => {
     if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
   }
 }, { capture: true });
+
 
 
