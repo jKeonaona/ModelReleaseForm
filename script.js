@@ -1,5 +1,5 @@
 // ===== EMAILJS CONFIG (FILL THESE) =====
-const EMAILJS_PUBLIC_KEY = 'ZL6bzLecBAW63-WVz';
+const EMAILJS_PUBLIC_KEY = 'HmCo7TY_HYL8r7Buq';
 const EMAILJS_SERVICE_ID = 'service_xpgramm';
 const EMAILJS_TEMPLATE_ID = 'template_xsg9cft';
 
@@ -167,6 +167,7 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
   }, { capture: true });
 });
+
 
 
 
