@@ -122,7 +122,8 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   }
 
   // ------- submit via EmailJS -------
-  form.addEventListener('submit', async (e) => {
+  console.log('EmailJS key at runtime:', EMAILJS_PUBLIC_KEY);
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
 
@@ -167,6 +168,7 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
   }, { capture: true });
 });
+
 
 
 
