@@ -155,10 +155,12 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
         updateMinorUI();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 5000);
-    } catch (err) {
-      console.error(err);
-      showConfirm('⚠️ Email failed. Check EmailJS keys/service/template and try again.');
-    }
+   } catch (err) {
+  console.error('EmailJS error -> status:', err?.status, 'text:', err?.text || err?.message);
+  const reason = (err && (err.text || err.message)) ? ` Details: ${err.text || err.message}` : '';
+  alert('Email failed.' + reason); // temporary: show exact reason
+}
   }, { capture: true });
 });
+
 
