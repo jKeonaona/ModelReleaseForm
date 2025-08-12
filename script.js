@@ -143,14 +143,11 @@ form.addEventListener('submit', async (e) => {
     }
 
     // Send the entire form (includes <input type="file" name="headshot">) through EmailJS
-    try {
-      if (!window.emailjs) throw new Error('EmailJS not loaded');
-    await window.emailjs.sendForm(
-  EMAILJS_SERVICE_ID,
-  EMAILJS_TEMPLATE_ID,
-  form,
-  { publicKey: 'HmCo7TY_HYL8r7Buq' }
-);
+  try {
+    await fetch('https://script.google.com/macros/s/PASTE_YOUR_GAS_WEB_APP_URL/exec', {
+        method: 'POST',
+        body: new FormData(form)
+    });
 
       showConfirm('✅ Thank you! Your form was submitted.');
       setTimeout(() => {
@@ -168,6 +165,7 @@ form.addEventListener('submit', async (e) => {
 }
   }, { capture: true });
 });
+
 
 
 
