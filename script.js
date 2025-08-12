@@ -151,7 +151,6 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   { publicKey: EMAILJS_PUBLIC_KEY.trim() }
 );
 
-
       showConfirm('✅ Thank you! Your form was submitted.');
       setTimeout(() => {
         form.reset();
@@ -168,6 +167,7 @@ window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
   }, { capture: true });
 });
+
 
 
 
