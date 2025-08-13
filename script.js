@@ -166,7 +166,7 @@ window.clearReleases = async () => {
   ageSelect.addEventListener('input', updateMinorUI);
   updateMinorUI(); // set initial state on load
 
-  // ---- Submit (NO sending) ----
+ // ---- Submit (NO sending) ----
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -203,22 +203,4 @@ form.addEventListener('submit', async (e) => {
     updateMinorUI();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, 3000);
-});
-
-    // Show a local success (no network) and reset for testing
-    showConfirm('✅ Form captured locally (no email sent).');
-    setTimeout(() => {
-      form.reset();
-      if (modelPad) modelPad.clear();
-      if (guardianPad) guardianPad.clear();
-      hideConfirm();
-      updateMinorUI();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 3000);
-  }, { capture: true });
-
-  // ---- Sanity logs (optional; remove later) ----
-  if (!window.SignaturePad) console.error('SignaturePad library not loaded. Check the CDN <script> tag order.');
-  if (!modelCanvas) console.error('#modelSignatureCanvas not found.');
-});
-
+}, { capture: true });
