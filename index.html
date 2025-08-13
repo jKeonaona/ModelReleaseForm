@@ -5,29 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WildPx Model Release</title>
 <style>
-  body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#fff;background:url('BackgroundImage.png') center/cover fixed no-repeat;}
+  :root { --ok:#22c55e; --warn:#ef4444; }
+  body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#fff;background:url('BackgroundImage.png') center/cover fixed no-repeat}
   body::before{content:"";position:fixed;inset:0;background:rgba(0,100,0,.8);z-index:0}
-  .overlay{position:relative;z-index:1;background:rgba(0,0,0,.65);max-width:600px;margin:40px auto;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+  .overlay{position:relative;z-index:1;background:rgba(0,0,0,.65);max-width:640px;margin:40px auto;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
   label,select,input,textarea,button{display:block;width:100%;margin-bottom:12px;font-size:1rem}
   input,select,textarea{padding:8px;border:none;border-radius:4px;box-sizing:border-box}
   button{background:#5cb85c;color:#fff;font-weight:700;padding:10px;border:none;border-radius:6px;cursor:pointer}
   button:hover{background:#4cae4c}
-  .logo{display:block;margin:0 auto 20px;max-width:200px}
+  .logo{display:block;margin:0 auto 20px;max-width:200px;user-select:none;-webkit-user-drag:none}
   canvas{background:#fff;border:1px solid #ccc;border-radius:4px;display:block;width:100%;height:150px;margin-bottom:10px;touch-action:none}
-  #banner{display:none;position:fixed;left:16px;right:16px;top:12px;z-index:9999;background:rgba(34,197,94,.95);color:#fff;padding:12px;border-radius:8px;text-align:center;font-weight:700}
-  #savedCount{font-size:.9rem;opacity:.9;margin-bottom:10px}
-  .row{display:flex;gap:12px}
-  .row > button{flex:1}
+  #banner{display:none;position:fixed;left:16px;right:16px;top:12px;z-index:9999;padding:12px;border-radius:8px;text-align:center;font-weight:700}
+  #banner.ok{background:rgba(34,197,94,.95)}
+  #banner.err{background:rgba(239,68,68,.95)}
+  #adminBar{display:none;gap:8px;align-items:center;margin:10px 0}
+  #adminBar button{flex:0 0 auto}
+  .row-actions{display:flex;gap:12px}
 </style>
 </head>
 <body>
+  <!-- Confirmation banner -->
   <div id="banner" role="status" aria-live="polite"></div>
 
   <div class="overlay">
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
-    <h1>Model & Photo Release Form</h1>
 
-    <div id="savedCount">Saved on this device: <b>0</b></div>
+    <!-- Hidden admin bar (long-press logo to toggle) -->
+    <div id="adminBar">
+      <button type="button" id="exportAllBtn" style="background:#2563eb">Export All</button>
+      <button type="button" id="exportClearBtn" style="background:#7c3aed">Export & Clear</button>
+      <span id="savedCount" style="font-size:.9rem;opacity:.85">Saved: 0</span>
+    </div>
+
+    <h1>Model & Photo Release Form</h1>
 
     <form id="releaseForm" novalidate>
       <label>Full Name:
@@ -104,13 +114,12 @@
       <input type="hidden" name="modelSignature" id="modelSignatureData" />
 
       <label>Date:
-        <input type="date" name="signatureDate" required />
+        <input type="date" name="signatureDate" />
+        <!-- not required; we auto-fill it on submit -->
       </label>
 
-      <div class="row">
+      <div class="row-actions">
         <button type="submit">Submit</button>
-        <button type="button" id="exportBtn" style="background:#2563eb">Export</button>
-        <button type="button" id="clearBtn"  style="background:#b91c1c">Clear</button>
       </div>
     </form>
   </div>
@@ -120,10 +129,12 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('releaseForm');
-    const banner = document.getElementById('banner');
-    const savedCountEl = document.querySelector('#savedCount b');
+    const KEY = 'formEntries'; // localStorage key
 
+    const banner = document.getElementById('banner');
+    const savedCountEl = document.getElementById('savedCount');
+
+    const form = document.getElementById('releaseForm');
     const ageSelect = document.getElementById('ageCheck');
     const guardianSection = document.getElementById('guardianSection');
     const childrenSection = document.getElementById('childrenSection');
@@ -134,21 +145,28 @@
     const modelSigField = document.getElementById('modelSignatureData');
     const guardianSigField = document.getElementById('guardianSignatureData');
 
-    const exportBtn = document.getElementById('exportBtn');
-    const clearBtn  = document.getElementById('clearBtn');
+    const exportAllBtn = document.getElementById('exportAllBtn');
+    const exportClearBtn = document.getElementById('exportClearBtn');
 
     const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
-    function showBanner(msg) {
-      banner.textContent = msg || '✅ Saved';
+    // Banner helpers
+    function showBannerOk(msg){
+      banner.className = 'ok';
+      banner.textContent = msg || 'Saved';
       banner.style.display = 'block';
-      banner.style.opacity = '1';
-      setTimeout(() => { banner.style.display = 'none'; }, 5000);
+      setTimeout(() => banner.style.display = 'none', 4000);
+    }
+    function showBannerErr(msg){
+      banner.className = 'err';
+      banner.textContent = msg || 'Error';
+      banner.style.display = 'block';
+      setTimeout(() => banner.style.display = 'none', 5000);
     }
 
-    function setTodayIfBlank() {
-      if (!signatureDateInput.value) signatureDateInput.value = new Date().toISOString().slice(0,10);
-    }
+    // Signature pads
+    let modelPad = null;
+    let guardianPad = null;
 
     function resizeCanvas(canvas, pad) {
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -156,13 +174,10 @@
       if (!rect.width) return;
       canvas.width  = Math.floor(rect.width * ratio);
       canvas.height = Math.floor(150 * ratio);
-      canvas.getContext('2d').scale(ratio, ratio);
+      const ctx = canvas.getContext('2d');
+      ctx.scale(ratio, ratio);
       if (pad && typeof pad.clear === 'function') pad.clear();
     }
-
-    // Signature pads
-    let modelPad = null;
-    let guardianPad = null;
 
     function initModelPad() {
       if (!window.SignaturePad) return;
@@ -204,69 +219,147 @@
     ageSelect.addEventListener('input', updateMinorUI);
     updateMinorUI();
 
-    // Saved count
+    // Utilities
+    function getAll() {
+      try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
+    }
+    function setAll(arr) {
+      localStorage.setItem(KEY, JSON.stringify(arr));
+      updateSavedCount();
+    }
     function updateSavedCount() {
-      const total = JSON.parse(localStorage.getItem('formEntries') || '[]').length;
-      savedCountEl.textContent = total;
+      const n = getAll().length;
+      if (savedCountEl) savedCountEl.textContent = 'Saved: ' + n;
     }
     updateSavedCount();
 
+    function setTodayIfBlank() {
+      if (!signatureDateInput.value) signatureDateInput.value = new Date().toISOString().slice(0,10);
+    }
+
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+    }
+
     // Submit (local save only)
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // Minimal validation (do not rely on required browser validation)
+      const fullName = (form.elements['fullName'].value || '').trim();
+      const ageVal = String(ageSelect.value || '').toLowerCase();
+      const isMinor = ageVal === 'no';
+
+      if (!fullName) { showBannerErr('Please enter full name.'); return; }
+      if (!ageVal)   { showBannerErr('Please select Yes/No for age.'); return; }
+      if (!modelPad || modelPad.isEmpty()) { showBannerErr('Please sign as model.'); return; }
+      if (isMinor) {
+        const gName = (form.elements['guardianName'].value || '').trim();
+        const gRel  = (form.elements['guardianRelationship'].value || '').trim();
+        if (!gName || !gRel) { showBannerErr('Guardian name and relationship required.'); return; }
+        if (!guardianPad || guardianPad.isEmpty()) { showBannerErr('Guardian signature required.'); return; }
+      }
 
       setTodayIfBlank();
 
-      modelSigField.value = (modelPad && !modelPad.isEmpty()) ? modelPad.toDataURL('image/jpeg', 0.85) : '';
-      const needGuardian = guardianSection.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
+      // capture signatures
+      modelSigField.value = modelPad.toDataURL('image/jpeg', 0.85);
+      guardianSigField.value = (isMinor && guardianPad && !guardianPad.isEmpty())
+        ? guardianPad.toDataURL('image/jpeg', 0.85) : '';
 
-      const data = Object.fromEntries(new FormData(form).entries());
+      // build entry
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
       data.timestamp = new Date().toISOString();
 
+      // Optional: try to store headshot only if reasonably small
+      const file = form.elements['headshot']?.files?.[0];
+      if (file) {
+        try {
+          if (file.size <= 300000) { // ~300 KB
+            data.headshotDataURL = await fileToDataURL(file);
+          } else {
+            data.headshotNote = 'Headshot present but large; not saved inline (' + file.size + ' bytes)';
+          }
+        } catch (err) {
+          data.headshotNote = 'Headshot present but could not be read';
+        }
+      }
+
+      // save locally
       try {
-        const arr = JSON.parse(localStorage.getItem('formEntries') || '[]');
-        arr.push(data);
-        localStorage.setItem('formEntries', JSON.stringify(arr));
-        updateSavedCount();
-        showBanner('✅ Saved locally. Total: ' + arr.length);
+        const all = getAll();
+        all.push(data);
+        setAll(all);
       } catch (err) {
-        alert('⚠️ Could not save locally: ' + err.message);
+        showBannerErr('Could not save locally. Check browser settings.');
         return;
       }
 
+      // reset UI
       form.reset();
       if (modelPad) modelPad.clear();
       if (guardianPad) guardianPad.clear();
       updateMinorUI();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      showBannerOk('Saved locally. Total: ' + getAll().length);
     }, { capture: true });
 
-    // Export / Clear
-    function downloadJSON(filename, text) {
-      const blob = new Blob([text], { type:'application/json' });
-      const url  = URL.createObjectURL(blob);
+    // Hidden admin bar reveal: long-press on logo
+    (function setupAdminReveal(){
+      const logo = document.querySelector('.logo');
+      const adminBar = document.getElementById('adminBar');
+      if (!logo || !adminBar) return;
+
+      let pressTimer = null;
+      const start = () => { pressTimer = setTimeout(() => {
+        adminBar.style.display = (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
+      }, 1200); };
+      const cancel = () => { if (pressTimer) clearTimeout(pressTimer); };
+
+      logo.addEventListener('mousedown', start);
+      logo.addEventListener('touchstart', start, {passive:true});
+      ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => logo.addEventListener(ev, cancel));
+    })();
+
+    // Export all into one JSON bundle
+    function downloadJSON(filename, obj) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 500);
     }
 
-    exportBtn.addEventListener('click', () => {
-      const data = localStorage.getItem('formEntries') || '[]';
-      const when = new Date().toISOString().slice(0,10);
-      downloadJSON(`wildpx_releases_${when}.json`, data);
+    exportAllBtn.addEventListener('click', () => {
+      const entries = getAll();
+      if (!entries.length) { showBannerErr('No saved forms to export.'); return; }
+      const bundle = { exported_at: new Date().toISOString(), count: entries.length, entries };
+      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+      downloadJSON(fn, bundle);
+      showBannerOk('Exported ' + entries.length + ' forms.');
     });
 
-    clearBtn.addEventListener('click', () => {
-      if (confirm('Delete all locally saved forms on this device?')) {
-        localStorage.removeItem('formEntries');
-        updateSavedCount();
-        showBanner('🗑️ Local forms cleared.');
-      }
+    // Export and clear
+    exportClearBtn.addEventListener('click', () => {
+      const entries = getAll();
+      if (!entries.length) { showBannerErr('Nothing to export.'); return; }
+      if (!confirm('Export all forms and then clear them from this device?')) return;
+
+      const bundle = { exported_at: new Date().toISOString(), count: entries.length, entries };
+      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+      downloadJSON(fn, bundle);
+
+      localStorage.removeItem(KEY);
+      updateSavedCount();
+      showBannerOk('Exported and cleared.');
     });
   });
   </script>
