@@ -80,19 +80,15 @@
         </label>
       </div>
 
-      <div id="guardianSection" style="display:none">
-        <h3>Parent/Guardian Info</h3>
-        <label>Guardian Name:
-          <input type="text" name="guardianName" />
-        </label>
-        <label>Relationship to Participant:
-          <input type="text" name="guardianRelationship" />
-        </label>
-        <label>Guardian Signature:</label>
-        <canvas id="guardianSignatureCanvas"></canvas>
-        <button type="button" onclick="clearGuardianSig()">Clear Guardian Signature</button>
-        <input type="hidden" name="guardianSignature" id="guardianSignatureData" />
-      </div>
+      <div id="guardianSection" style="display:none;">
+  <h3>Parent/Guardian Info</h3>
+  <label>Guardian Name:
+    <input type="text" name="guardianName" />
+  </label>
+  <label>Relationship to Participant:
+    <input type="text" name="guardianRelationship" />
+  </label>
+</div>
 
       <label>
         Please take or upload a photo of yourself.
@@ -108,10 +104,10 @@
         <li>I waive right to review final use.</li>
       </ul>
 
-      <label>Model Signature:</label>
-      <canvas id="modelSignatureCanvas"></canvas>
-      <button type="button" onclick="clearModelSig()">Clear Model Signature</button>
-      <input type="hidden" name="modelSignature" id="modelSignatureData" />
+     <label><span id="signatureLabel">Model Signature:</span></label>
+<canvas id="signatureCanvas"></canvas>
+<button type="button" onclick="clearPrimarySig()">Clear Signature</button>
+<input type="hidden" name="modelSignature" id="signatureData" />
 
       <label>Date:
         <input type="date" name="signatureDate" />
@@ -365,3 +361,4 @@
   </script>
 </body>
 </html>
+
