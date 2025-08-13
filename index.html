@@ -210,66 +210,9 @@
       <button type="submit">Submit</button>
     </form>
 
-    <!-- ✅ Confirmation message -->
-    <div id="confirmationMessage">✅ Thank you! Your form was submitted.</div>
-  </div>
+   </div>
 
-  <script src="script.js"></script>
-  <script>
-  const form = document.getElementById('releaseForm');
-  const confirmation = document.getElementById('confirmationMessage');
-
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-
-    confirmation.textContent = '';
-    confirmation.style.display = 'none';
-
-    const formData = new FormData(form);
-
-    // Convert signature canvases to base64 and append to formData
-    const modelSignature = document.getElementById('modelSignature').toDataURL();
-    formData.append('modelSignature', modelSignature);
-
-    const guardianSignatureField = document.getElementById('guardianSignature');
-    if (guardianSignatureField) {
-      const guardianSignature = guardianSignatureField.toDataURL();
-      formData.append('guardianSignature', guardianSignature);
-    }
-
-    // Get uploaded image (if any)
-    const imageInput = document.getElementById('imageUpload');
-    if (imageInput.files.length > 0) {
-      formData.append('image', imageInput.files[0]);
-    }
-
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbyCI8ycBdH2xE2ai4GCH2DE5qH8xHe3qu13UwUgeMh8SdcTzrZvCTxNFtEtgOh6qPuRoQ/exec',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      if (response.ok) {
-        confirmation.textContent = 'Thank you! Your form was submitted successfully.';
-        confirmation.style.display = 'block';
-
-        setTimeout(() => {
-          form.reset();
-          confirmation.style.display = 'none';
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 5000);
-      } else {
-        confirmation.textContent = 'Something went wrong. Please try again.';
-        confirmation.style.display = 'block';
-      }
-    } catch (error) {
-      confirmation.textContent = 'Error submitting form. Please check your internet connection.';
-      confirmation.style.display = 'block';
-    }
-  });
-</script>
+<!-- Load your JS (keep only this; no inline script) -->
+<script src="script.js"></script>
 </body>
 </html>
