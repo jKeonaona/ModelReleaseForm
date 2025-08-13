@@ -176,32 +176,61 @@ document.addEventListener('DOMContentLoaded', () => {
     ok('Saved locally. Total: ' + getAll().length);
   }, { capture: true });
 
-  // ----- hidden admin bar (long-press logo to toggle) -----
-  // ----- hidden admin bar (double-tap logo to toggle) -----
+// ----- secure admin bar reveal: triple-tap + optional PIN -----
 (function setupAdminReveal() {
   const logo = document.querySelector('.logo');
   const adminBar = document.getElementById('adminBar');
   if (!logo || !adminBar) return;
 
-  let lastTap = 0;
-  function toggle() {
+  // CONFIG
+  const REQUIRED_TAPS = 3;       // triple tap
+  const WINDOW_MS     = 1200;    // all taps within 1.2s
+  const REQUIRE_PIN   = false;   // set to true to require a PIN prompt
+  const PIN_CODE      = '2468';  // change if REQUIRE_PIN = true
+
+  let taps = 0;
+  let firstTapAt = 0;
+  let timer = null;
+
+  function reset() {
+    taps = 0;
+    firstTapAt = 0;
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function toggleAdmin() {
+    if (REQUIRE_PIN) {
+      const entered = prompt('Enter admin PIN:');
+      if (entered !== PIN_CODE) return;
+    }
     adminBar.style.display =
       (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
   }
 
-  // Works for both touch and click (prevents accidental double submit)
-  function onTap(ev) {
+  function handleTap(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+
     const now = Date.now();
-    if (now - lastTap < 350) { // double-tap within 350ms
-      ev.preventDefault();
-      ev.stopPropagation();
-      toggle();
+    if (!firstTapAt || (now - firstTapAt) > WINDOW_MS) {
+      firstTapAt = now;
+      taps = 1;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(reset, WINDOW_MS + 100);
+    } else {
+      taps++;
     }
-    lastTap = now;
+
+    if (taps >= REQUIRED_TAPS) {
+      if (timer) clearTimeout(timer);
+      reset();
+      toggleAdmin();
+    }
   }
 
-  logo.addEventListener('touchend', onTap, { passive: false });
-  logo.addEventListener('click', onTap, { passive: false });
+  // Touch primary; click as desktop fallback
+  logo.addEventListener('touchend', handleTap, { passive: false });
+  logo.addEventListener('click',    handleTap, { passive: false });
 })();
 
   // ----- export helpers -----
@@ -239,4 +268,5 @@ document.addEventListener('DOMContentLoaded', () => {
     ok('Exported and cleared.');
   });
 });
+
 
