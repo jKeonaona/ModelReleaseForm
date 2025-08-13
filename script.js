@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hideConfirm();
       updateMinorUI();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 3000);
+    }, 5000);
   }, { capture: true });
 });
+
