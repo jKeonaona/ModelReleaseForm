@@ -204,3 +204,4 @@ form.addEventListener('submit', async (e) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, 3000);
 }, { capture: true });
+});
