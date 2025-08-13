@@ -6,49 +6,36 @@
   <title>WildPx Model Release</title>
   <style>
     body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: url('BackgroundImage.png') no-repeat center center fixed;
-      background-size: cover;
-      position: relative;
-      color: #fff;
+      background-size: cover; color: #fff;
     }
     body::before {
-      content: '';
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background-color: rgba(0, 100, 0, 0.8);
-      z-index: 0;
+      content: ''; position: fixed; inset: 0;
+      background-color: rgba(0, 100, 0, 0.8); z-index: 0;
     }
     .overlay {
-      position: relative; z-index: 1;
-      background-color: rgba(0, 0, 0, 0.65);
+      position: relative; z-index: 1; background: rgba(0,0,0,.65);
       padding: 20px; max-width: 600px; margin: 40px auto;
-      border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,.4);
     }
     #confirmationMessage {
-      display: none;
-      text-align: center; margin-top: 20px; font-weight: bold; font-size: 1.1rem;
-      padding: 12px; border-radius: 8px;
-      background-color: rgba(144, 238, 144, 0.15);
-      color: #aaffaa; border: 1px solid #77dd77;
+      display: none; text-align: center; margin-top: 20px;
+      font-weight: 600; font-size: 1.05rem; padding: 12px; border-radius: 8px;
+      background: rgba(144,238,144,.15); color: #aaffaa; border: 1px solid #77dd77;
     }
-    label, select, input, textarea, button {
-      display: block; width: 100%; margin-bottom: 12px; font-size: 1rem;
-    }
-    input, select, textarea { padding: 8px; border-radius: 4px; border: none; box-sizing: border-box; }
-    button { background-color: #5cb85c; color: white; font-weight: bold; padding: 10px; border: none; border-radius: 5px; cursor: pointer; }
-    button:hover { background-color: #4cae4c; }
-    .logo { display: block; margin: 0 auto 20px; max-width: 200px; }
-    small { font-size: 0.85em; color: #ccc; }
+    label, select, input, textarea, button { display:block; width:100%; margin-bottom:12px; font-size:1rem; }
+    input, select, textarea { padding:8px; border-radius:4px; border:none; box-sizing:border-box; }
+    button { background:#5cb85c; color:#fff; font-weight:700; padding:10px; border:none; border-radius:5px; cursor:pointer; }
+    button:hover { background:#4cae4c; }
+    .logo { display:block; margin:0 auto 20px; max-width:200px; }
+    small { font-size:.85em; color:#ccc; }
     ul { padding-left: 20px; }
     ul li { margin-bottom: 8px; }
     canvas {
-      background-color: #fff; border: 1px solid #ccc; border-radius: 4px;
-      display: block; margin-bottom: 10px; width: 100%; height: 150px;
-      touch-action: none;
+      background:#fff; border:1px solid #ccc; border-radius:4px;
+      display:block; margin-bottom:10px; width:100%; height:150px; touch-action:none;
     }
   </style>
 </head>
@@ -57,10 +44,9 @@
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
     <h1>Model & Photo Release Form</h1>
 
-    <!-- Single confirmation box (keep only this one) -->
-    <div id="confirmationMessage" style="display:none;"></div>
+    <div id="confirmationMessage"></div>
 
-    <form id="releaseForm">
+    <form id="releaseForm" novalidate>
       <label>Full Name:
         <input type="text" name="fullName" required />
       </label>
@@ -145,8 +131,136 @@
     </form>
   </div>
 
-  <!-- Load SignaturePad then your JS (no inline script) -->
+  <!-- SignaturePad library -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
-  <script src="script.js?v=baseline-1"></script>
+
+  <!-- App logic (inline so there’s no mismatch with external files) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('releaseForm');
+      const confirmation = document.getElementById('confirmationMessage');
+
+      const ageSelect = document.getElementById('ageCheck');
+      const guardianSection = document.getElementById('guardianSection');
+      const childrenSection = document.getElementById('childrenSection');
+
+      const modelCanvas = document.getElementById('modelSignatureCanvas');
+      const guardianCanvas = document.getElementById('guardianSignatureCanvas');
+
+      const modelSigField = document.getElementById('modelSignatureData');
+      const guardianSigField = document.getElementById('guardianSignatureData');
+
+      const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+
+      function showConfirm(text) {
+        confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
+        confirmation.style.display = 'block';
+      }
+      function hideConfirm() {
+        confirmation.style.display = 'none';
+        confirmation.textContent = '';
+      }
+      function setTodayIfBlank() {
+        if (!signatureDateInput.value) {
+          signatureDateInput.value = new Date().toISOString().slice(0,10);
+        }
+      }
+      function resizeCanvas(canvas, pad) {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width) return;
+        canvas.width  = Math.floor(rect.width * ratio);
+        canvas.height = Math.floor(150 * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(ratio, ratio);
+        if (pad && typeof pad.clear === 'function') pad.clear();
+      }
+
+      // Signature pads
+      let modelPad = null;
+      let guardianPad = null;
+
+      function initModelPad() {
+        if (!window.SignaturePad) return;
+        modelPad = new window.SignaturePad(modelCanvas, { penColor: '#000' });
+        requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
+      }
+      function initGuardianPad() {
+        if (!window.SignaturePad) return;
+        if (!guardianPad) guardianPad = new window.SignaturePad(guardianCanvas, { penColor: '#000' });
+        requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
+      }
+
+      initModelPad();
+
+      window.addEventListener('resize', () => {
+        if (modelPad) requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
+        if (guardianPad && guardianSection.style.display !== 'none') {
+          requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
+        }
+      });
+
+      window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
+      window.clearGuardianSig = () => { if (guardianPad) guardianPad.clear(); };
+
+      // Age toggle
+      function updateMinorUI() {
+        const isMinor = String(ageSelect.value || '').toLowerCase() === 'no';
+        guardianSection.style.display = isMinor ? 'block' : 'none';
+        childrenSection.style.display = isMinor ? 'block' : 'none';
+
+        const gName = form.querySelector('input[name="guardianName"]');
+        const gRel  = form.querySelector('input[name="guardianRelationship"]');
+        if (gName) gName.required = isMinor;
+        if (gRel)  gRel.required  = isMinor;
+
+        if (isMinor) initGuardianPad();
+      }
+      ageSelect.addEventListener('change', updateMinorUI);
+      ageSelect.addEventListener('input', updateMinorUI);
+      updateMinorUI();
+
+      // Submit (UI-only + local save)
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        hideConfirm();
+        setTodayIfBlank();
+
+        // copy signatures to hidden fields
+        modelSigField.value = (modelPad && !modelPad.isEmpty()) ? modelPad.toDataURL('image/jpeg', 0.85) : '';
+        const needGuardian = guardianSection.style.display !== 'none';
+        guardianSigField.value =
+          (needGuardian && guardianPad && !guardianPad.isEmpty())
+            ? guardianPad.toDataURL('image/jpeg', 0.85)
+            : '';
+
+        // simple localStorage save
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        data.timestamp = new Date().toISOString();
+
+        try {
+          const existing = JSON.parse(localStorage.getItem('formEntries') || '[]');
+          existing.push(data);
+          localStorage.setItem('formEntries', JSON.stringify(existing));
+        } catch (err) {
+          console.error('Local save failed:', err);
+          alert('⚠️ Could not save locally. Please try again.');
+          return;
+        }
+
+        showConfirm('✅ Form saved locally (offline mode)');
+        setTimeout(() => {
+          form.reset();
+          if (modelPad) modelPad.clear();
+          if (guardianPad) guardianPad.clear();
+          hideConfirm();
+          updateMinorUI();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 3000);
+      }, { capture: true });
+    });
+  </script>
 </body>
 </html>
