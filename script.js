@@ -19,11 +19,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
   // ---- Helpers ----
-  function showConfirm(text) {
-    if (!confirmation) return;
-    confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
-    confirmation.style.display = 'block';
-  }
+function showConfirm(text) {
+  if (!confirmation) return;
+
+  // Message
+  confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
+  // Force visible and pin it to the top as a banner
+  confirmation.style.display = 'block';
+  confirmation.style.opacity = '1';
+  confirmation.style.animation = 'none';
+
+  // Make it a fixed banner so it can’t be hidden by layout
+  confirmation.style.position = 'fixed';
+  confirmation.style.top = '12px';
+  confirmation.style.left = '16px';
+  confirmation.style.right = '16px';
+  confirmation.style.zIndex = '9999';
+  confirmation.style.textAlign = 'center';
+  confirmation.style.padding = '12px';
+  confirmation.style.borderRadius = '8px';
+  confirmation.style.background = 'rgba(34, 197, 94, 0.95)'; // bright green
+  confirmation.style.color = '#ffffff';
+  confirmation.style.border = 'none';
+
+  // Bring focus for accessibility (optional)
+  confirmation.setAttribute('role', 'status');
+  confirmation.setAttribute('aria-live', 'polite');
+}
+
   function hideConfirm() {
     if (!confirmation) return;
     confirmation.style.display = 'none';
@@ -139,4 +162,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 5000);
   }, { capture: true });
 });
+
 
