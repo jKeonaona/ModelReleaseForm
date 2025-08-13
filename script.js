@@ -168,9 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // reset for next signer
-    form.reset();
-    primaryPad?.clear();
-    updateMinorUI();
+    const ageValBeforeReset = ageSelect.value;
+form.reset();
+ageSelect.value = ageValBeforeReset; // restore previous value
+primaryPad?.clear();
+updateMinorUI();
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     ok('Saved locally. Total: ' + getAll().length);
@@ -268,5 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ok('Exported and cleared.');
   });
 });
+
 
 
