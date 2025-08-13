@@ -177,21 +177,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { capture: true });
 
   // ----- hidden admin bar (long-press logo to toggle) -----
-  (function setupAdminReveal() {
-    const logo    = document.querySelector('.logo');
-    const adminBar= document.getElementById('adminBar');
-    if (!logo || !adminBar) return;
+  // ----- hidden admin bar (double-tap logo to toggle) -----
+(function setupAdminReveal() {
+  const logo = document.querySelector('.logo');
+  const adminBar = document.getElementById('adminBar');
+  if (!logo || !adminBar) return;
 
-    let t = null;
-    const start  = () => { t = setTimeout(() => {
-      adminBar.style.display = (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
-    }, 1200); };
-    const cancel = () => { if (t) clearTimeout(t); };
+  let lastTap = 0;
+  function toggle() {
+    adminBar.style.display =
+      (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
+  }
 
-    logo.addEventListener('mousedown', start);
-    logo.addEventListener('touchstart', start, { passive: true });
-    ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => logo.addEventListener(ev, cancel));
-  })();
+  // Works for both touch and click (prevents accidental double submit)
+  function onTap(ev) {
+    const now = Date.now();
+    if (now - lastTap < 350) { // double-tap within 350ms
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggle();
+    }
+    lastTap = now;
+  }
+
+  logo.addEventListener('touchend', onTap, { passive: false });
+  logo.addEventListener('click', onTap, { passive: false });
+})();
 
   // ----- export helpers -----
   function downloadJSON(filename, obj) {
@@ -228,3 +239,4 @@ document.addEventListener('DOMContentLoaded', () => {
     ok('Exported and cleared.');
   });
 });
+
