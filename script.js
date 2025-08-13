@@ -1,177 +1,230 @@
-// ========== Model Release FORM — UI ONLY (no network) ==========
+// ========== WildPx Model Release — UI ONLY (no network) ==========
 document.addEventListener('DOMContentLoaded', () => {
   console.log('✅ script.js DOMContentLoaded running');
 
-  // ---- Elements ----
-  const form = document.getElementById('releaseForm');
-  const confirmation = document.getElementById('confirmationMessage');
+  // ----- storage key -----
+  const KEY = 'formEntries';
 
-  const ageSelect = document.getElementById('ageCheck');
-  const guardianSection = document.getElementById('guardianSection');
-  const childrenSection = document.getElementById('childrenSection');
+  // ----- elements -----
+  const banner            = document.getElementById('banner');
+  const form              = document.getElementById('releaseForm');
 
-  const modelCanvas = document.getElementById('modelSignatureCanvas');
-  const guardianCanvas = document.getElementById('guardianSignatureCanvas');
+  const ageSelect         = document.getElementById('ageCheck');
+  const guardianSection   = document.getElementById('guardianSection');
+  const childrenSection   = document.getElementById('childrenSection');
 
-  const modelSigField = document.getElementById('modelSignatureData');
-  const guardianSigField = document.getElementById('guardianSignatureData');
+  const signatureLabelEl  = document.getElementById('signatureLabel');
+  const signatureCanvas   = document.getElementById('signatureCanvas');
+  const signatureData     = document.getElementById('signatureData');
+  const signatureDateInput= form.querySelector('input[name="signatureDate"]');
 
-  const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+  const exportAllBtn      = document.getElementById('exportAllBtn');
+  const exportClearBtn    = document.getElementById('exportClearBtn');
+  const savedCountEl      = document.getElementById('savedCount');
 
-  // ---- Helpers ----
-function showConfirm(text) {
-  if (!confirmation) return;
-
-  // Message
-  confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
-  // Force visible and pin it to the top as a banner
-  confirmation.style.display = 'block';
-  confirmation.style.opacity = '1';
-  confirmation.style.animation = 'none';
-
-  // Make it a fixed banner so it can’t be hidden by layout
-  confirmation.style.position = 'fixed';
-  confirmation.style.top = '12px';
-  confirmation.style.left = '16px';
-  confirmation.style.right = '16px';
-  confirmation.style.zIndex = '9999';
-  confirmation.style.textAlign = 'center';
-  confirmation.style.padding = '12px';
-  confirmation.style.borderRadius = '8px';
-  confirmation.style.background = 'rgba(34, 197, 94, 0.95)'; // bright green
-  confirmation.style.color = '#ffffff';
-  confirmation.style.border = 'none';
-
-  // Bring focus for accessibility (optional)
-  confirmation.setAttribute('role', 'status');
-  confirmation.setAttribute('aria-live', 'polite');
-}
-
-  function hideConfirm() {
-    if (!confirmation) return;
-    confirmation.style.display = 'none';
-    confirmation.textContent = '';
+  // ----- banner helpers -----
+  function showBanner(kind, msg) {
+    if (!banner) return;
+    banner.className = kind; // 'ok' or 'err'
+    banner.textContent = msg || (kind === 'ok' ? 'Saved' : 'Error');
+    banner.style.display = 'block';
+    setTimeout(() => (banner.style.display = 'none'), kind === 'ok' ? 4000 : 5000);
   }
-  function setTodayIfBlank() {
-    if (!signatureDateInput) return;
-    if (!signatureDateInput.value) {
-      const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
-      signatureDateInput.value = today;
-    }
-  }
+  const ok  = (m) => showBanner('ok', m);
+  const err = (m) => showBanner('err', m);
+
+  // ----- signature pad (single, shared) -----
+  let primaryPad = null;
+
   function resizeCanvas(canvas, pad) {
-    if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width) return; // avoid 0-width init
+    const rect  = canvas.getBoundingClientRect();
+    if (!rect.width) return;                   // avoid 0 width init
     canvas.width  = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio); // matches CSS height
+    canvas.height = Math.floor(150 * ratio);   // CSS height = 150px
     const ctx = canvas.getContext('2d');
     ctx.scale(ratio, ratio);
-    if (pad && typeof pad.clear === 'function') pad.clear();
+    pad?.clear?.();
   }
 
-  // ---- Signature pads ----
-  let modelPad = null;
-  let guardianPad = null;
-
-  function initModelPad() {
-    if (!window.SignaturePad || !modelCanvas) return;
-    modelPad = new window.SignaturePad(modelCanvas, { penColor: '#000' });
-    requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
-  }
-  function initGuardianPad() {
-    if (!window.SignaturePad || !guardianCanvas) return;
-    if (!guardianPad) guardianPad = new window.SignaturePad(guardianCanvas, { penColor: '#000' });
-    requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
+  function initPrimaryPad() {
+    if (!window.SignaturePad) { console.error('SignaturePad not loaded'); return; }
+    if (!primaryPad) primaryPad = new window.SignaturePad(signatureCanvas, { penColor: '#000' });
+    requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
   }
 
-  initModelPad();
+  // Clear button handler (called by HTML onclick)
+  window.clearPrimarySig = () => { primaryPad?.clear(); };
 
+  initPrimaryPad();
   window.addEventListener('resize', () => {
-    if (modelPad) requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
-    if (guardianPad && guardianSection && guardianSection.style.display !== 'none') {
-      requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
-    }
+    if (primaryPad) requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
   });
 
-  // Clear buttons (used by inline onclick in HTML)
-  window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
-  window.clearGuardianSig = () => { if (guardianPad) guardianPad.clear(); };
-
-  // ---- Age toggle (No = minor -> show sections) ----
+  // ----- age toggle -----
   function updateMinorUI() {
-    if (!ageSelect || !guardianSection || !childrenSection) return;
     const isMinor = String(ageSelect.value || '').toLowerCase() === 'no';
+
     guardianSection.style.display = isMinor ? 'block' : 'none';
     childrenSection.style.display = isMinor ? 'block' : 'none';
 
-    const gName = form.querySelector('input[name="guardianName"]');
-    const gRel  = form.querySelector('input[name="guardianRelationship"]');
+    const gName = form.elements['guardianName'];
+    const gRel  = form.elements['guardianRelationship'];
     if (gName) gName.required = isMinor;
     if (gRel)  gRel.required  = isMinor;
 
-    if (isMinor) initGuardianPad();
+    signatureLabelEl.textContent = isMinor ? 'Parent/Guardian Signature:' : 'Model Signature:';
   }
-  ageSelect && ageSelect.addEventListener('change', updateMinorUI);
-  ageSelect && ageSelect.addEventListener('input', updateMinorUI);
-  updateMinorUI(); // set initial state on load
-  
-function downloadJSON(filename, obj) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 500);
-}
+  ageSelect.addEventListener('change', updateMinorUI);
+  ageSelect.addEventListener('input',  updateMinorUI);
+  updateMinorUI();
 
-  // ---- Submit (NO sending) ----
+  // ----- small utils -----
+  function setTodayIfBlank() {
+    if (!signatureDateInput.value) {
+      signatureDateInput.value = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    }
+  }
+
+  function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+
+  // ----- local storage helpers -----
+  function getAll() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch { return []; }
+  }
+  function setAll(arr) {
+    localStorage.setItem(KEY, JSON.stringify(arr));
+    updateSavedCount();
+  }
+  function updateSavedCount() {
+    if (!savedCountEl) return;
+    const n = getAll().length;
+    savedCountEl.textContent = 'Saved: ' + n;
+  }
+  updateSavedCount();
+
+  // ----- submit (save locally only) -----
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    hideConfirm();
-    setTodayIfBlank();
+    const fullName = (form.elements['fullName'].value || '').trim();
+    const ageVal   = String(ageSelect.value || '').toLowerCase();
+    const isMinor  = ageVal === 'no';
 
-    // Copy signatures into hidden inputs
-    if (modelSigField && modelPad) {
-      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
-    }
-    if (guardianSigField && guardianSection) {
-      const needGuardian = guardianSection.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
-    }
+    if (!fullName) { err('Please enter the model’s full name.'); return; }
+    if (!ageVal)   { err('Please select Yes/No for age.'); return; }
 
-    // --- Save locally (simple localStorage) ---
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    data.timestamp = new Date().toISOString();
-    downloadJSON(`wildpx_release_${new Date().toISOString().replace(/[:.]/g,'-')}.json`, data);
-
-    try {
-      const existing = JSON.parse(localStorage.getItem('formEntries') || '[]');
-      existing.push(data);
-      localStorage.setItem('formEntries', JSON.stringify(existing));
-    } catch (err) {
-      console.error('Local save failed:', err);
-      alert('⚠️ Could not save locally. Please try again.');
+    if (!primaryPad || primaryPad.isEmpty()) {
+      err(isMinor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
       return;
     }
 
-    showConfirm('✅ Form saved locally (offline mode)');
-    setTimeout(() => {
-      form.reset();
-      if (modelPad) modelPad.clear();
-      if (guardianPad) guardianPad.clear();
-      hideConfirm();
-      updateMinorUI();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 5000);
+    if (isMinor) {
+      const gName = (form.elements['guardianName'].value || '').trim();
+      const gRel  = (form.elements['guardianRelationship'].value || '').trim();
+      if (!gName || !gRel) { err('Guardian Name and Relationship are required.'); return; }
+    }
+
+    setTodayIfBlank();
+
+    // capture signature image into hidden input
+    signatureData.value = primaryPad.toDataURL('image/jpeg', 0.85);
+
+    // collect fields
+    const fd   = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+    data.timestamp = new Date().toISOString();
+
+    // optionally embed small headshot
+    const file = form.elements['headshot']?.files?.[0];
+    if (file) {
+      try {
+        if (file.size <= 300000) {
+          data.headshotDataURL = await fileToDataURL(file);
+        } else {
+          data.headshotNote = 'Headshot present but large; not saved inline (' + file.size + ' bytes)';
+        }
+      } catch {
+        data.headshotNote = 'Headshot present but could not be read';
+      }
+    }
+
+    // store
+    try {
+      const all = getAll();
+      all.push(data);
+      setAll(all);
+    } catch {
+      err('Could not save locally. Check browser settings.');
+      return;
+    }
+
+    // reset for next signer
+    form.reset();
+    primaryPad?.clear();
+    updateMinorUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    ok('Saved locally. Total: ' + getAll().length);
   }, { capture: true });
+
+  // ----- hidden admin bar (long-press logo to toggle) -----
+  (function setupAdminReveal() {
+    const logo    = document.querySelector('.logo');
+    const adminBar= document.getElementById('adminBar');
+    if (!logo || !adminBar) return;
+
+    let t = null;
+    const start  = () => { t = setTimeout(() => {
+      adminBar.style.display = (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
+    }, 1200); };
+    const cancel = () => { if (t) clearTimeout(t); };
+
+    logo.addEventListener('mousedown', start);
+    logo.addEventListener('touchstart', start, { passive: true });
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => logo.addEventListener(ev, cancel));
+  })();
+
+  // ----- export helpers -----
+  function downloadJSON(filename, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+
+  // Export all
+  exportAllBtn?.addEventListener('click', () => {
+    const entries = getAll();
+    if (!entries.length) { err('No saved forms to export.'); return; }
+    const bundle = { exported_at: new Date().toISOString(), count: entries.length, entries };
+    const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+    downloadJSON(fn, bundle);
+    ok('Exported ' + entries.length + ' forms.');
+  });
+
+  // Export & clear
+  exportClearBtn?.addEventListener('click', () => {
+    const entries = getAll();
+    if (!entries.length) { err('Nothing to export.'); return; }
+    if (!confirm('Export all forms and then clear them from this device?')) return;
+
+    const bundle = { exported_at: new Date().toISOString(), count: entries.length, entries };
+    const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+    downloadJSON(fn, bundle);
+
+    localStorage.removeItem(KEY);
+    updateSavedCount();
+    ok('Exported and cleared.');
+  });
 });
-
-
-
