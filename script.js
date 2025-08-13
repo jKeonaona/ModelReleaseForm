@@ -116,6 +116,15 @@ function showConfirm(text) {
   ageSelect && ageSelect.addEventListener('change', updateMinorUI);
   ageSelect && ageSelect.addEventListener('input', updateMinorUI);
   updateMinorUI(); // set initial state on load
+  
+function downloadJSON(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
 
   // ---- Submit (NO sending) ----
   form.addEventListener('submit', async (e) => {
@@ -140,6 +149,7 @@ function showConfirm(text) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     data.timestamp = new Date().toISOString();
+    downloadJSON(`wildpx_release_${new Date().toISOString().replace(/[:.]/g,'-')}.json`, data);
 
     try {
       const existing = JSON.parse(localStorage.getItem('formEntries') || '[]');
@@ -162,5 +172,6 @@ function showConfirm(text) {
     }, 5000);
   }, { capture: true });
 });
+
 
 
