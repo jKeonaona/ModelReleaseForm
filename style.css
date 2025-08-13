@@ -119,4 +119,7 @@ canvas {
   90%  { opacity: 1; }
   100% { opacity: 0; }
 }
+#clearSigBtn { margin-top: 8px; }
+#clearSigBtn:disabled { opacity: .5; cursor: not-allowed; }
+
 
