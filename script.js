@@ -204,4 +204,8 @@ form.addEventListener('submit', async (e) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, 3000);
 }, { capture: true });
-});
+document.addEventListener('DOMContentLoaded', () => {
+  // ...all your code...
+  form.addEventListener('submit', async (e) => { ... }, { capture: true });
+});  // <-- this was missing
+
