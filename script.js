@@ -1,7 +1,10 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
+// ========== Model Release FORM — UI ONLY (no network) ==========
+
+document.addEventListener('DOMContentLoaded', () => {
+  // ---- Elements ----
   const form = document.getElementById('releaseForm');
-  const confirmations = Array.from(document.querySelectorAll('#confirmationMessage'));
+  const confirmation = document.getElementById('confirmationMessage');
+
   const ageSelect = document.getElementById('ageCheck');
   const guardianSection = document.getElementById('guardianSection');
   const childrenSection = document.getElementById('childrenSection');
@@ -11,130 +14,117 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const modelSigField = document.getElementById('modelSignatureData');
   const guardianSigField = document.getElementById('guardianSignatureData');
+
   const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
-  // ------- small helpers -------
+  // ---- Small helpers ----
   function showConfirm(text) {
-    confirmations.forEach(el => {
-      if (!el) return;
-      el.textContent = text || '✅ Thank you! Your form was submitted.';
-      el.style.display = 'block';
-    });
+    if (!confirmation) return;
+    confirmation.textContent = text || '✅ Thank you! Your form was submitted.';
+    confirmation.style.display = 'block';
   }
   function hideConfirm() {
-    confirmations.forEach(el => {
-      if (!el) return;
-      el.style.display = 'none';
-      el.textContent = '';
-    });
+    if (!confirmation) return;
+    confirmation.style.display = 'none';
+    confirmation.textContent = '';
   }
   function setTodayIfBlank() {
     if (!signatureDateInput) return;
     if (!signatureDateInput.value) {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      signatureDateInput.value = `${yyyy}-${mm}-${dd}`;
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      signatureDateInput.value = today;
     }
   }
   function resizeCanvas(canvas, pad) {
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio);
+    if (!rect.width) return; // avoid 0-width init
+    canvas.width  = Math.floor(rect.width * ratio);
+    canvas.height = Math.floor(150 * ratio); // matches CSS height
     const ctx = canvas.getContext('2d');
     ctx.scale(ratio, ratio);
-    pad?.clear();
+    if (pad && typeof pad.clear === 'function') pad.clear();
   }
 
-  // ------- signature pads -------
+  // ---- Signature pads (no network, UI only) ----
   let modelPad = null;
   let guardianPad = null;
 
-  if (modelCanvas) {
-    modelPad = new SignaturePad(modelCanvas, { penColor: '#000' });
-    resizeCanvas(modelCanvas, modelPad);
+  function initModelPad() {
+    if (!window.SignaturePad || !modelCanvas) return;
+    modelPad = new window.SignaturePad(modelCanvas, { penColor: '#000' });
+    // size next frame (layout is ready)
+    requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
   }
-  function ensureGuardianPad() {
-    if (!guardianCanvas) return;
-    if (!guardianPad) guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
-    resizeCanvas(guardianCanvas, guardianPad);
+  function initGuardianPad() {
+    if (!window.SignaturePad || !guardianCanvas) return;
+    if (!guardianPad) guardianPad = new window.SignaturePad(guardianCanvas, { penColor: '#000' });
+    requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
   }
 
+  initModelPad();
+
   window.addEventListener('resize', () => {
-    if (modelCanvas && modelPad) resizeCanvas(modelCanvas, modelPad);
-    if (guardianSection?.style.display !== 'none' && guardianCanvas && guardianPad) {
-      resizeCanvas(guardianCanvas, guardianPad);
+    if (modelPad) requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
+    if (guardianPad && guardianSection.style.display !== 'none') {
+      requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
     }
   });
 
-  window.clearModelSig = () => { modelPad?.clear(); };
-  window.clearGuardianSig = () => {
-    if (guardianSection?.style.display !== 'none') ensureGuardianPad();
-    guardianPad?.clear();
-  };
+  // Clear buttons (used by inline onclick in HTML)
+  window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
+  window.clearGuardianSig = () => { if (guardianPad) guardianPad.clear(); };
 
-  // ------- age toggle -------
+  // ---- Age toggle (No = minor -> show sections) ----
   function updateMinorUI() {
-    const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
-    if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
-    if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
+    const isMinor = String(ageSelect.value || '').toLowerCase() === 'no';
+    guardianSection.style.display = isMinor ? 'block' : 'none';
+    childrenSection.style.display = isMinor ? 'block' : 'none';
 
     const gName = form.querySelector('input[name="guardianName"]');
-    const gRel = form.querySelector('input[name="guardianRelationship"]');
+    const gRel  = form.querySelector('input[name="guardianRelationship"]');
     if (gName) gName.required = isMinor;
-    if (gRel) gRel.required = isMinor;
+    if (gRel)  gRel.required  = isMinor;
 
-    if (isMinor) ensureGuardianPad();
+    if (isMinor) initGuardianPad();
   }
-  ageSelect?.addEventListener('change', updateMinorUI);
-  updateMinorUI();
+  ageSelect.addEventListener('change', updateMinorUI);
+  ageSelect.addEventListener('input', updateMinorUI);
+  updateMinorUI(); // set initial state on load
 
-  // ------- submit to Google Apps Script -------
-  form.addEventListener('submit', async (e) => {
+  // ---- Submit (NO sending) ----
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
-    e.stopImmediatePropagation();
 
     hideConfirm();
     setTodayIfBlank();
 
-    // Move signatures into hidden fields
+    // Move signatures into hidden inputs (so you can see they capture)
     if (modelSigField && modelPad) {
       modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
     }
     if (guardianSigField) {
-      const needGuardian = guardianSection?.style.display !== 'none';
+      const needGuardian = guardianSection.style.display !== 'none';
       guardianSigField.value =
         (needGuardian && guardianPad && !guardianPad.isEmpty())
           ? guardianPad.toDataURL('image/jpeg', 0.85)
           : '';
     }
 
-    // Send form data to Google Apps Script
-   // Send to Google Apps Script (no EmailJS)
-try {
-  await fetch('https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec', {
-    method: 'POST',
-    body: new FormData(form),
-    mode: 'no-cors' // avoid browser CORS block
-  });
-
-  // We can't read a response in no-cors mode; just show success UI
-  showConfirm('✅ Thank you! Your form was submitted.');
-  setTimeout(() => {
-    form.reset();
-    modelPad?.clear();
-    guardianPad?.clear?.();
-    hideConfirm();
-    updateMinorUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 5000);
-} catch (err) {
-  console.error('Google Script submit failed:', err);
-  alert('Submission failed. Please try again.');
-}
+    // Show a local success (no network) and reset for testing
+    showConfirm('✅ Form captured locally (no email sent).');
+    setTimeout(() => {
+      form.reset();
+      if (modelPad) modelPad.clear();
+      if (guardianPad) guardianPad.clear();
+      hideConfirm();
+      updateMinorUI();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 3000);
   }, { capture: true });
-});
 
+  // ---- Sanity logs (optional; remove later) ----
+  if (!window.SignaturePad) console.error('SignaturePad library not loaded. Check the CDN <script> tag order.');
+  if (!modelCanvas) console.error('#modelSignatureCanvas not found.');
+});
