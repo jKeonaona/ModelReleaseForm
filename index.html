@@ -5,22 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WildPx Model Release</title>
 <style>
-  :root { --ok:#22c55e; --warn:#ef4444; }
+  :root { --ok:#22c55e; --err:#ef4444; }
+  *{box-sizing:border-box}
   body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#fff;background:url('BackgroundImage.png') center/cover fixed no-repeat}
   body::before{content:"";position:fixed;inset:0;background:rgba(0,100,0,.8);z-index:0}
   .overlay{position:relative;z-index:1;background:rgba(0,0,0,.65);max-width:640px;margin:40px auto;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
   label,select,input,textarea,button{display:block;width:100%;margin-bottom:12px;font-size:1rem}
-  input,select,textarea{padding:8px;border:none;border-radius:4px;box-sizing:border-box}
+  input,select,textarea{padding:8px;border:none;border-radius:4px;background:#fff;color:#111}
   button{background:#5cb85c;color:#fff;font-weight:700;padding:10px;border:none;border-radius:6px;cursor:pointer}
   button:hover{background:#4cae4c}
-  .logo{display:block;margin:0 auto 20px;max-width:200px;user-select:none;-webkit-user-drag:none}
+  .logo{display:block;margin:0 auto 16px;max-width:200px;user-select:none;-webkit-user-drag:none}
   canvas{background:#fff;border:1px solid #ccc;border-radius:4px;display:block;width:100%;height:150px;margin-bottom:10px;touch-action:none}
   #banner{display:none;position:fixed;left:16px;right:16px;top:12px;z-index:9999;padding:12px;border-radius:8px;text-align:center;font-weight:700}
-  #banner.ok{background:rgba(34,197,94,.95)}
-  #banner.err{background:rgba(239,68,68,.95)}
+  #banner.ok{background:rgba(34,197,94,.96)}
+  #banner.err{background:rgba(239,68,68,.96)}
   #adminBar{display:none;gap:8px;align-items:center;margin:10px 0}
   #adminBar button{flex:0 0 auto}
-  .row-actions{display:flex;gap:12px}
+  small{color:#ddd}
+  ul{padding-left:20px}
+  ul li{margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -30,19 +33,20 @@
   <div class="overlay">
     <img src="WILDPX-01-5-.png" alt="WildPx Logo" class="logo" />
 
-    <!-- Hidden admin bar (long-press logo to toggle) -->
+    <!-- Hidden admin bar (long-press logo ~1.2s to toggle) -->
     <div id="adminBar">
       <button type="button" id="exportAllBtn" style="background:#2563eb">Export All</button>
       <button type="button" id="exportClearBtn" style="background:#7c3aed">Export & Clear</button>
-      <span id="savedCount" style="font-size:.9rem;opacity:.85">Saved: 0</span>
+      <span id="savedCount" style="font-size:.9rem;opacity:.9">Saved: 0</span>
     </div>
 
     <h1>Model & Photo Release Form</h1>
 
     <form id="releaseForm" novalidate>
-      <label>Full Name:
+      <label>Model Full Name:
         <input type="text" name="fullName" required />
       </label>
+
       <label>Address Line 1:
         <input type="text" name="address1" />
       </label>
@@ -58,6 +62,7 @@
       <label>Zip Code:
         <input type="text" name="zip" />
       </label>
+
       <label>Phone:
         <input type="text" name="phone" />
       </label>
@@ -75,76 +80,84 @@
 
       <div id="childrenSection" style="display:none">
         <h3>Additional Children (if any)</h3>
-        <label>Names and ages:
-          <textarea name="additionalChildren" rows="3" placeholder="Example: Jane (7), Sam (5)"></textarea>
+        <label>Names and ages:<br>
+          <small>Example: Jane (7), Sam (5)</small>
+          <textarea name="additionalChildren" rows="3" placeholder="Enter names and ages here"></textarea>
         </label>
       </div>
 
-      <div id="guardianSection" style="display:none;">
-  <h3>Parent/Guardian Info</h3>
-  <label>Guardian Name:
-    <input type="text" name="guardianName" />
-  </label>
-  <label>Relationship to Participant:
-    <input type="text" name="guardianRelationship" />
-  </label>
-</div>
+      <div id="guardianSection" style="display:none">
+        <h3>Parent/Guardian Info</h3>
+        <label>Guardian Name:
+          <input type="text" name="guardianName" />
+        </label>
+        <label>Relationship to Participant:
+          <input type="text" name="guardianRelationship" />
+        </label>
+      </div>
 
       <label>
-        Please take or upload a photo of yourself.
+        Please take or upload a photo of the participant.<br>
+        <small>Tap Upload to open camera or files.</small>
         <input type="file" name="headshot" accept="image/*" capture="user" />
       </label>
 
       <p><strong>Photo Release & Copyright Agreement</strong></p>
+      <p>
+        I hereby grant WildPx LLC, its legal representatives, assigns, and licensees the absolute and irrevocable right
+        and permission to use, publish, reproduce, modify, or otherwise exploit, in whole or in part, my likeness and
+        any photographs or digital images taken of me, in any form, media, or manner, now or hereafter known, for any
+        purpose, including advertising, promotion, marketing, editorial, and display. I acknowledge that all copyrights
+        in the images are the sole and exclusive property of WildPx LLC, and I waive any right to inspect or approve the
+        final images, derivatives, or uses thereof. I further agree that I shall not reproduce, distribute, alter, edit,
+        or otherwise use any of the images without prior written consent from WildPx LLC.
+      </p>
+
       <ul>
-        <li>I do not own any rights to the images.</li>
-        <li>All rights remain with WildPx LLC.</li>
+        <li>All image copyrights belong to WildPx LLC.</li>
         <li>No compensation unless agreed in writing.</li>
-        <li>Images may be edited or modified.</li>
-        <li>I waive right to review final use.</li>
+        <li>Images may be edited, retouched, or modified.</li>
+        <li>I waive any right to review or approve final uses.</li>
+        <li>I will not reproduce or edit images without written permission.</li>
       </ul>
 
-     <label><span id="signatureLabel">Model Signature:</span></label>
-<canvas id="signatureCanvas"></canvas>
-<button type="button" onclick="clearPrimarySig()">Clear Signature</button>
-<input type="hidden" name="modelSignature" id="signatureData" />
+      <!-- ONE shared signature area that flips label -->
+      <label><span id="signatureLabel">Model Signature:</span></label>
+      <canvas id="signatureCanvas"></canvas>
+      <button type="button" onclick="clearPrimarySig()">Clear Signature</button>
+      <input type="hidden" name="modelSignature" id="signatureData" />
 
       <label>Date:
         <input type="date" name="signatureDate" />
-        <!-- not required; we auto-fill it on submit -->
+        <small>If left blank, today’s date will be used on submit.</small>
       </label>
 
-      <div class="row-actions">
-        <button type="submit">Submit</button>
-      </div>
+      <button type="submit">Submit</button>
     </form>
   </div>
 
-  <!-- SignaturePad -->
+  <!-- Signature Pad -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const KEY = 'formEntries'; // localStorage key
+    console.log('✅ index.html loaded');
+    const KEY = 'formEntries';
 
+    // Elements
     const banner = document.getElementById('banner');
-    const savedCountEl = document.getElementById('savedCount');
-
     const form = document.getElementById('releaseForm');
     const ageSelect = document.getElementById('ageCheck');
     const guardianSection = document.getElementById('guardianSection');
     const childrenSection = document.getElementById('childrenSection');
-
-    const modelCanvas = document.getElementById('modelSignatureCanvas');
-    const guardianCanvas = document.getElementById('guardianSignatureCanvas');
-
-    const modelSigField = document.getElementById('modelSignatureData');
-    const guardianSigField = document.getElementById('guardianSignatureData');
+    const signatureLabelEl = document.getElementById('signatureLabel');
+    const signatureCanvas = document.getElementById('signatureCanvas');
+    const signatureData = document.getElementById('signatureData');
+    const signatureDateInput = form.querySelector('input[name="signatureDate"]');
 
     const exportAllBtn = document.getElementById('exportAllBtn');
     const exportClearBtn = document.getElementById('exportClearBtn');
-
-    const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+    const savedCountEl = document.getElementById('savedCount');
 
     // Banner helpers
     function showBannerOk(msg){
@@ -160,10 +173,8 @@
       setTimeout(() => banner.style.display = 'none', 5000);
     }
 
-    // Signature pads
-    let modelPad = null;
-    let guardianPad = null;
-
+    // Signature pad (single)
+    let primaryPad = null;
     function resizeCanvas(canvas, pad) {
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       const rect = canvas.getBoundingClientRect();
@@ -172,31 +183,16 @@
       canvas.height = Math.floor(150 * ratio);
       const ctx = canvas.getContext('2d');
       ctx.scale(ratio, ratio);
-      if (pad && typeof pad.clear === 'function') pad.clear();
+      pad?.clear?.();
     }
-
-    function initModelPad() {
-      if (!window.SignaturePad) return;
-      modelPad = new window.SignaturePad(modelCanvas, { penColor: '#000' });
-      requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
+    function initPrimaryPad() {
+      if (!window.SignaturePad) { console.error('SignaturePad not loaded'); return; }
+      if (!primaryPad) primaryPad = new window.SignaturePad(signatureCanvas, { penColor: '#000' });
+      requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
     }
-    function initGuardianPad() {
-      if (!window.SignaturePad) return;
-      if (!guardianPad) guardianPad = new window.SignaturePad(guardianCanvas, { penColor: '#000' });
-      requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
-    }
-
-    window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
-    window.clearGuardianSig = () => { if (guardianPad) guardianPad.clear(); };
-
-    initModelPad();
-
-    window.addEventListener('resize', () => {
-      if (modelPad) requestAnimationFrame(() => resizeCanvas(modelCanvas, modelPad));
-      if (guardianPad && guardianSection.style.display !== 'none') {
-        requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
-      }
-    });
+    window.clearPrimarySig = () => { primaryPad?.clear(); };
+    initPrimaryPad();
+    window.addEventListener('resize', () => { if (primaryPad) requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad)); });
 
     // Age toggle
     function updateMinorUI() {
@@ -209,31 +205,22 @@
       if (gName) gName.required = isMinor;
       if (gRel)  gRel.required  = isMinor;
 
-      if (isMinor) initGuardianPad();
+      signatureLabelEl.textContent = isMinor ? 'Parent/Guardian Signature:' : 'Model Signature:';
     }
     ageSelect.addEventListener('change', updateMinorUI);
-    ageSelect.addEventListener('input', updateMinorUI);
+    ageSelect.addEventListener('input',  updateMinorUI);
     updateMinorUI();
 
-    // Utilities
-    function getAll() {
-      try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
-    }
-    function setAll(arr) {
-      localStorage.setItem(KEY, JSON.stringify(arr));
-      updateSavedCount();
-    }
-    function updateSavedCount() {
-      const n = getAll().length;
-      if (savedCountEl) savedCountEl.textContent = 'Saved: ' + n;
-    }
+    // Local storage helpers
+    function getAll(){ try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
+    function setAll(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); }
+    function updateSavedCount(){ const n = getAll().length; if (savedCountEl) savedCountEl.textContent = 'Saved: ' + n; }
     updateSavedCount();
 
-    function setTodayIfBlank() {
+    function setTodayIfBlank(){
       if (!signatureDateInput.value) signatureDateInput.value = new Date().toISOString().slice(0,10);
     }
-
-    function fileToDataURL(file) {
+    function fileToDataURL(file){
       return new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
@@ -246,85 +233,78 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      // Minimal validation (do not rely on required browser validation)
       const fullName = (form.elements['fullName'].value || '').trim();
       const ageVal = String(ageSelect.value || '').toLowerCase();
       const isMinor = ageVal === 'no';
 
-      if (!fullName) { showBannerErr('Please enter full name.'); return; }
+      if (!fullName) { showBannerErr('Please enter the model’s full name.'); return; }
       if (!ageVal)   { showBannerErr('Please select Yes/No for age.'); return; }
-      if (!modelPad || modelPad.isEmpty()) { showBannerErr('Please sign as model.'); return; }
+      if (!primaryPad || primaryPad.isEmpty()) {
+        showBannerErr(isMinor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
+        return;
+      }
       if (isMinor) {
         const gName = (form.elements['guardianName'].value || '').trim();
         const gRel  = (form.elements['guardianRelationship'].value || '').trim();
-        if (!gName || !gRel) { showBannerErr('Guardian name and relationship required.'); return; }
-        if (!guardianPad || guardianPad.isEmpty()) { showBannerErr('Guardian signature required.'); return; }
+        if (!gName || !gRel) { showBannerErr('Guardian Name and Relationship are required.'); return; }
       }
 
       setTodayIfBlank();
 
-      // capture signatures
-      modelSigField.value = modelPad.toDataURL('image/jpeg', 0.85);
-      guardianSigField.value = (isMinor && guardianPad && !guardianPad.isEmpty())
-        ? guardianPad.toDataURL('image/jpeg', 0.85) : '';
+      // capture signature into hidden field
+      signatureData.value = primaryPad.toDataURL('image/jpeg', 0.85);
 
-      // build entry
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
       data.timestamp = new Date().toISOString();
 
-      // Optional: try to store headshot only if reasonably small
+      // Optional: include headshot if small
       const file = form.elements['headshot']?.files?.[0];
       if (file) {
         try {
-          if (file.size <= 300000) { // ~300 KB
+          if (file.size <= 300000) {
             data.headshotDataURL = await fileToDataURL(file);
           } else {
             data.headshotNote = 'Headshot present but large; not saved inline (' + file.size + ' bytes)';
           }
-        } catch (err) {
-          data.headshotNote = 'Headshot present but could not be read';
-        }
+        } catch { data.headshotNote = 'Headshot present but could not be read'; }
       }
 
-      // save locally
       try {
         const all = getAll();
         all.push(data);
         setAll(all);
-      } catch (err) {
+      } catch {
         showBannerErr('Could not save locally. Check browser settings.');
         return;
       }
 
-      // reset UI
       form.reset();
-      if (modelPad) modelPad.clear();
-      if (guardianPad) guardianPad.clear();
+      primaryPad?.clear();
       updateMinorUI();
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       showBannerOk('Saved locally. Total: ' + getAll().length);
-    }, { capture: true });
+    }, { capture:true });
 
-    // Hidden admin bar reveal: long-press on logo
+    // Hidden admin bar: long-press logo
     (function setupAdminReveal(){
       const logo = document.querySelector('.logo');
       const adminBar = document.getElementById('adminBar');
       if (!logo || !adminBar) return;
 
-      let pressTimer = null;
-      const start = () => { pressTimer = setTimeout(() => {
+      let t = null;
+      const start = () => { t = setTimeout(() => {
         adminBar.style.display = (adminBar.style.display === 'none' || !adminBar.style.display) ? 'flex' : 'none';
       }, 1200); };
-      const cancel = () => { if (pressTimer) clearTimeout(pressTimer); };
+      const cancel = () => { if (t) clearTimeout(t); };
 
       logo.addEventListener('mousedown', start);
       logo.addEventListener('touchstart', start, {passive:true});
       ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => logo.addEventListener(ev, cancel));
     })();
 
-    // Export all into one JSON bundle
+    // Export helpers
     function downloadJSON(filename, obj) {
       const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -334,6 +314,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 500);
     }
 
+    // Export all
     exportAllBtn.addEventListener('click', () => {
       const entries = getAll();
       if (!entries.length) { showBannerErr('No saved forms to export.'); return; }
@@ -343,7 +324,7 @@
       showBannerOk('Exported ' + entries.length + ' forms.');
     });
 
-    // Export and clear
+    // Export & clear
     exportClearBtn.addEventListener('click', () => {
       const entries = getAll();
       if (!entries.length) { showBannerErr('Nothing to export.'); return; }
@@ -361,4 +342,3 @@
   </script>
 </body>
 </html>
-
