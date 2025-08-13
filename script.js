@@ -52,6 +52,57 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!primaryPad) primaryPad = new window.SignaturePad(signatureCanvas, { penColor: '#000' });
     requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
   }
+// ----- Safe Clear for signature (long-press, disabled when empty) -----
+const clearBtn = document.getElementById('clearSigBtn');
+
+function updateClearState() {
+  if (!clearBtn) return;
+  clearBtn.disabled = !primaryPad || primaryPad.isEmpty();
+}
+
+// Hook into SignaturePad draw events to enable the button after signing
+if (primaryPad) {
+  primaryPad.onEnd = () => updateClearState();   // fires when user finishes a stroke
+  primaryPad.onBegin = () => {};                 // optional, here if needed later
+}
+
+// Long-press to clear (600ms). Single taps won't clear.
+let pressTimer = null;
+function startPressTimer(e) {
+  e.preventDefault(); // reduce accidental scroll/menus
+  if (clearBtn.disabled) return;
+  // Only clear after sustained press
+  pressTimer = setTimeout(() => {
+    primaryPad?.clear();
+    updateClearState();
+  }, 600);
+}
+function cancelPressTimer() {
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+}
+
+// Touch (mobile/iPad)
+clearBtn?.addEventListener('touchstart', startPressTimer, { passive: false });
+clearBtn?.addEventListener('touchend', cancelPressTimer);
+clearBtn?.addEventListener('touchcancel', cancelPressTimer);
+
+// Mouse (desktop fallback) — require confirm on click
+clearBtn?.addEventListener('mousedown', startPressTimer);
+clearBtn?.addEventListener('mouseup', cancelPressTimer);
+clearBtn?.addEventListener('mouseleave', cancelPressTimer);
+clearBtn?.addEventListener('click', (e) => {
+  // If user just clicked (no long-press) and button is enabled, ask for confirmation
+  if (!primaryPad?.isEmpty() && pressTimer === null) {
+    e.preventDefault();
+    if (confirm('Clear signature?')) {
+      primaryPad.clear();
+      updateClearState();
+    }
+  }
+});
+
+// Initialize state
+updateClearState();
 
   // Clear button handler (called by HTML onclick)
   window.clearPrimarySig = () => { primaryPad?.clear(); };
@@ -271,6 +322,7 @@ updateMinorUI();
     ok('Exported and cleared.');
   });
 });
+
 
 
 
