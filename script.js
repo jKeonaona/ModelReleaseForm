@@ -71,6 +71,79 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(() => resizeCanvas(guardianCanvas, guardianPad));
     }
   });
+// ==== OFFLINE STORAGE (IndexedDB) ====
+const DB_NAME = 'wildpx_releases';
+const DB_STORE = 'submissions';
+const DB_VER = 1;
+
+function dbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbAdd(record) {
+  return dbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).add(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function dbGetAll() {
+  return dbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function dbClear() {
+  return dbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+// Handy export you can run later from the console: exportReleases()
+window.exportReleases = async () => {
+  const data = await dbGetAll();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wildpx_releases_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  alert('📦 Export downloaded.');
+};
+
+// Optional: window.clearReleases() to wipe local submissions (asks first)
+window.clearReleases = async () => {
+  if (confirm('Delete all locally saved releases? This cannot be undone.')) {
+    await dbClear();
+    alert('Local releases cleared.');
+  }
+};
 
   // Clear buttons (used by inline onclick in HTML)
   window.clearModelSig = () => { if (modelPad) modelPad.clear(); };
@@ -94,23 +167,43 @@ document.addEventListener('DOMContentLoaded', () => {
   updateMinorUI(); // set initial state on load
 
   // ---- Submit (NO sending) ----
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
 
+  hideConfirm();
+  setTodayIfBlank();
+
+  // Move signatures into hidden inputs
+  if (modelSigField && modelPad) {
+    modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
+  }
+  if (guardianSigField) {
+    const needGuardian = guardianSection.style.display !== 'none';
+    guardianSigField.value =
+      (needGuardian && guardianPad && !guardianPad.isEmpty())
+        ? guardianPad.toDataURL('image/jpeg', 0.85)
+        : '';
+  }
+
+  // --- Save locally ---
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+  data.timestamp = new Date().toISOString();
+
+  let stored = JSON.parse(localStorage.getItem('formEntries') || '[]');
+  stored.push(data);
+  localStorage.setItem('formEntries', JSON.stringify(stored));
+
+  showConfirm('✅ Form saved locally (offline mode)');
+  setTimeout(() => {
+    form.reset();
+    if (modelPad) modelPad.clear();
+    if (guardianPad) guardianPad.clear();
     hideConfirm();
-    setTodayIfBlank();
-
-    // Move signatures into hidden inputs (so you can see they capture)
-    if (modelSigField && modelPad) {
-      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
-    }
-    if (guardianSigField) {
-      const needGuardian = guardianSection.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
-    }
+    updateMinorUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 3000);
+});
 
     // Show a local success (no network) and reset for testing
     showConfirm('✅ Form captured locally (no email sent).');
@@ -128,3 +221,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!window.SignaturePad) console.error('SignaturePad library not loaded. Check the CDN <script> tag order.');
   if (!modelCanvas) console.error('#modelSignatureCanvas not found.');
 });
+
