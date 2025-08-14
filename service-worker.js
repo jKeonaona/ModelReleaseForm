@@ -1,7 +1,6 @@
-// Cache version (bump this when you change files)
-const CACHE = 'release-v1';
+// Cache version
+const CACHE = 'release-v2';
 
-// List of files to cache
 const ASSETS = [
   '/ModelReleaseForm/',
   '/ModelReleaseForm/index.html',
@@ -10,22 +9,17 @@ const ASSETS = [
   '/ModelReleaseForm/manifest.webmanifest',
   '/ModelReleaseForm/icons/icon-192.png',
   '/ModelReleaseForm/icons/icon-512.png',
-  '/ModelReleaseForm/backgroundImage.png',
+  '/ModelReleaseForm/BackgroundImage.png',
   '/ModelReleaseForm/WILDPX-01-5.png'
-  // Add any other image, font, or file your form uses
 ];
 
-// Install event: cache all assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-// Activate event: clean up old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', e => {
+  e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
@@ -33,20 +27,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event: serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-
-  // HTML navigation requests: try network first, fallback to cache
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/ModelReleaseForm/index.html'))
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).catch(() => caches.match('/ModelReleaseForm/index.html'))
     );
     return;
   }
-
-  // Other requests: try cache first, then network
-  event.respondWith(
-    caches.match(request).then(cached => cached || fetch(request))
-  );
+  e.respondWith(caches.match(req).then(cached => cached || fetch(req)));
 });
