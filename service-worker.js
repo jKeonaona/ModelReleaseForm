@@ -1,5 +1,5 @@
 // Force a new SW install
-const CACHE = 'release-nuke-1';
+const CACHE = 'release-nuke-2';
 
 // What to pre-cache (keep it simple)
 const ASSETS = [
@@ -32,9 +32,9 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
-      .then(resp => {
+      .then((resp) => {
         // refresh cache in background
-        caches.open(CACHE).then(c => c.put(e.request, resp.clone())).catch(()=>{});
+        caches.open(CACHE).then(c => c.put(e.request, resp.clone())).catch(() => {});
         return resp;
       })
       .catch(() =>
