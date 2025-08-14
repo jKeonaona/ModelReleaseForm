@@ -1,5 +1,5 @@
 // Force a new SW install
-const CACHE = 'release-nuke-2';
+const CACHE = 'release-v6';
 
 // What to pre-cache (keep it simple)
 const ASSETS = [
@@ -46,3 +46,4 @@ self.addEventListener('fetch', (e) => {
       )
   );
 });
+
