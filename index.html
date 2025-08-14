@@ -149,8 +149,17 @@
 
   <!-- Your app logic (external only; no inline JS) -->
   <script src="script.js" defer></script>
+  <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/ModelReleaseForm/service-worker.js').catch(console.error);
+  });
+}
+</script>
+
 </body>
 </html>
+
 
 
 
