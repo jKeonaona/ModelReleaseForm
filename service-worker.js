@@ -1,5 +1,5 @@
 // Cache version
-const CACHE = 'release-v3';
+const CACHE = 'release-v4';
 
 const ASSETS = [
   '/ModelReleaseForm/',
@@ -37,4 +37,5 @@ self.addEventListener('fetch', e => {
   }
   e.respondWith(caches.match(req).then(cached => cached || fetch(req)));
 });
+
 
