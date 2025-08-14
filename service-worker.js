@@ -8,7 +8,7 @@ const ASSETS = [
   '/ModelReleaseForm/styles.css',
   '/ModelReleaseForm/script.js',
   '/ModelReleaseForm/manifest.webmanifest',
-  '/ModelReleaseForm/WILDPX-01-5.png',
+  '/ModelReleaseForm/WILDPX-01-5.png?v=7',
   '/ModelReleaseForm/icons/icon-192.png',
   '/ModelReleaseForm/icons/icon-512.png',
   '/ModelReleaseForm/BackgroundImage.png'
@@ -46,5 +46,6 @@ self.addEventListener('fetch', (e) => {
       )
   );
 });
+
 
 
