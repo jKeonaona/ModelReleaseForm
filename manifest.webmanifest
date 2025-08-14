@@ -1,0 +1,9 @@
+{
+  "name": "WildPx Model Release",
+  "short_name": "Release",
+  "start_url": "/ModelReleaseForm/index.html",
+  "scope": "/ModelReleaseForm/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111"
+}
