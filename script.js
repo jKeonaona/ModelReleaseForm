@@ -32,6 +32,9 @@
     const signatureData    = document.getElementById('signatureData');
     const clearBtn         = document.getElementById('clearSigBtn');
     const signatureDateInp = form?.querySelector('input[name="signatureDate"]');
+    const headIn = form?.elements['headshot'];
+let headshotDataURL = '';
+
 
     const exportAllBtn     = document.getElementById('exportAllBtn');
     const exportClearBtn   = document.getElementById('exportClearBtn');
@@ -320,5 +323,6 @@ if (sigCanvas) {
   });
 })();
 </script>
+
 
 
