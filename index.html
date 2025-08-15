@@ -336,6 +336,17 @@ if ('serviceWorker' in navigator) {
     });
     printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
   });
+
+  // ---- Capture signature on form submit ----
+  document.getElementById('releaseForm').addEventListener('submit', function (e) {
+    const sigCanvas = document.getElementById('signatureCanvas');
+    if (sigCanvas) {
+      const sigData = sigCanvas.toDataURL('image/png'); // capture Base64 PNG
+      const hiddenField = document.getElementById('signatureData');
+      if (hiddenField) hiddenField.value = sigData;
+    }
+  });
+
 })();
 </script>
 
@@ -346,18 +357,11 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/ModelReleaseForm/service-worker.js').catch(console.error);
   });
 }
-  document.getElementById('releaseForm').addEventListener('submit', function (e) {
-  const sigCanvas = document.getElementById('signatureCanvas');
-  const sigData = sigCanvas.toDataURL('image/png'); // capture as Base64 PNG
-  document.getElementById('signatureData').value = sigData; // put in hidden field
-});
-
 </script>
 -->
 
 </body>
 </html>
-
 
 
 
