@@ -1,139 +1,270 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
-  const form = document.getElementById('releaseForm');
-  const confirmations = Array.from(document.querySelectorAll('#confirmationMessage'));
-  const ageSelect = document.getElementById('ageCheck');
-  const guardianSection = document.getElementById('guardianSection');
-  const childrenSection = document.getElementById('childrenSection');
+<script>
+// ========== WildPx Model Release — matches your current HTML ==========
+(() => {
+  if (window.__WILDPX_LOCK__) return; window.__WILDPX_LOCK__ = true;
 
-  const modelCanvas = document.getElementById('modelSignatureCanvas');
-  const guardianCanvas = document.getElementById('guardianSignatureCanvas');
+  document.addEventListener('DOMContentLoaded', () => {
+    // ----- storage key -----
+    const KEY = 'formEntries';
 
-  const modelSigField = document.getElementById('modelSignatureData');
-  const guardianSigField = document.getElementById('guardianSignatureData');
-  const signatureDateInput = form.querySelector('input[name="signatureDate"]');
+    // ----- elements -----
+    const banner           = document.getElementById('banner');
+    const form             = document.getElementById('releaseForm');
+    const ageSelect        = document.getElementById('ageCheck');
+    const guardianSection  = document.getElementById('guardianSection');
+    const childrenSection  = document.getElementById('childrenSection');
 
-  // ------- small helpers -------
-  function showConfirm(text) {
-    confirmations.forEach(el => {
-      if (!el) return;
-      el.textContent = text || '✅ Thank you! Your form was submitted.';
-      el.style.display = 'block';
+    const signatureLabelEl = document.getElementById('signatureLabel');
+    const signatureCanvas  = document.getElementById('signatureCanvas');
+    const signatureData    = document.getElementById('signatureData');
+    const clearBtn         = document.getElementById('clearSigBtn');
+    const signatureDateInp = form?.querySelector('input[name="signatureDate"]');
+
+    const exportAllBtn     = document.getElementById('exportAllBtn');
+    const exportClearBtn   = document.getElementById('exportClearBtn');
+    const exportCsvBtn     = document.getElementById('exportCsvBtn');
+    const printPdfBtn      = document.getElementById('printPdfBtn');
+    const savedCountEl     = document.getElementById('savedCount');
+
+    const logo             = document.querySelector('.logo');
+    const adminBar         = document.getElementById('adminBar');
+
+    // ----- banner -----
+    function toast(kind, msg){
+      if (!banner) return;
+      banner.className = kind;
+      banner.textContent = msg || (kind==='ok'?'Saved':'Error');
+      banner.style.display = 'block';
+      setTimeout(()=>banner.style.display='none', kind==='ok'?3000:4500);
+    }
+    const ok  = (m)=>toast('ok', m);
+    const err = (m)=>toast('err', m);
+
+    // ----- storage helpers -----
+    const getAll = () => { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } };
+    const setAll = (arr) => { localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); };
+    function updateSavedCount(){ if (savedCountEl) savedCountEl.textContent = 'Saved: ' + getAll().length; }
+    updateSavedCount();
+
+    // ===== Signature Pad (single canvas) =====
+    let pad = null;
+    let lastCssW = 0;
+
+    // Make canvas touch-drawable and ensure visible height without editing CSS files
+    if (signatureCanvas) {
+      if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
+      signatureCanvas.style.touchAction = 'none';
+    }
+
+    function resizeCanvasPreserve(canvas, pad){
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.floor(rect.width);
+      if (!cssW) return;
+      if (cssW === lastCssW && pad && !pad.isEmpty()) return;
+      lastCssW = cssW;
+
+      const ratio = Math.max(window.devicePixelRatio||1, 1);
+      const data  = pad && !pad.isEmpty() ? pad.toData() : null;
+
+      const cssH = Math.floor(parseFloat(getComputedStyle(canvas).height) || 150);
+      canvas.width  = Math.floor(cssW * ratio);
+      canvas.height = Math.floor(cssH * ratio);
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+      if (pad) {
+        pad.clear();
+        if (data && data.length) pad.fromData(data);
+      }
+    }
+
+    let rAF = null;
+    function scheduleResize(){
+      if (rAF) return;
+      rAF = requestAnimationFrame(()=>{ rAF=null; resizeCanvasPreserve(signatureCanvas, pad); });
+    }
+
+    function initPad(){
+      if (!signatureCanvas) return;
+      if (!window.SignaturePad) { console.error('SignaturePad not loaded'); err('Signature pad library missing.'); return; }
+      if (!pad) {
+        pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
+        pad.onEnd = updateClearState;
+        requestAnimationFrame(()=>resizeCanvasPreserve(signatureCanvas, pad));
+        updateClearState();
+      }
+    }
+
+    function updateClearState(){
+      if (!clearBtn) return;
+      clearBtn.disabled = !pad || pad.isEmpty();
+    }
+
+    clearBtn?.addEventListener('click', (e)=>{
+      if (!pad || pad.isEmpty()) return;
+      e.preventDefault();
+      if (confirm('Clear signature?')) { pad.clear(); updateClearState(); }
     });
-  }
-  function hideConfirm() {
-    confirmations.forEach(el => {
-      if (!el) return;
-      el.style.display = 'none';
-      el.textContent = '';
-    });
-  }
-  function setTodayIfBlank() {
-    if (!signatureDateInput) return;
-    if (!signatureDateInput.value) {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      signatureDateInput.value = `${yyyy}-${mm}-${dd}`;
-    }
-  }
-  function resizeCanvas(canvas, pad) {
-    if (!canvas) return;
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio);
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-    pad?.clear();
-  }
 
-  // ------- signature pads -------
-  let modelPad = null;
-  let guardianPad = null;
+    initPad();
+    window.addEventListener('resize',            scheduleResize);
+    window.addEventListener('orientationchange', ()=>setTimeout(scheduleResize, 300));
+    window.addEventListener('pageshow',          scheduleResize, { once:true });
 
-  if (modelCanvas) {
-    modelPad = new SignaturePad(modelCanvas, { penColor: '#000' });
-    resizeCanvas(modelCanvas, modelPad);
-  }
-  function ensureGuardianPad() {
-    if (!guardianCanvas) return;
-    if (!guardianPad) guardianPad = new SignaturePad(guardianCanvas, { penColor: '#000' });
-    resizeCanvas(guardianCanvas, guardianPad);
-  }
+    // ===== Age reveal (Yes/No) =====
+    function isMinor(){ return String(ageSelect?.value||'').trim().toLowerCase() === 'no'; }
 
-  window.addEventListener('resize', () => {
-    if (modelCanvas && modelPad) resizeCanvas(modelCanvas, modelPad);
-    if (guardianSection?.style.display !== 'none' && guardianCanvas && guardianPad) {
-      resizeCanvas(guardianCanvas, guardianPad);
-    }
-  });
+    function updateMinorUI(){
+      const minor = isMinor();
+      if (guardianSection)  guardianSection.style.display = minor ? 'block' : 'none';
+      if (childrenSection)  childrenSection.style.display = minor ? 'block' : 'none';
 
-  window.clearModelSig = () => { modelPad?.clear(); };
-  window.clearGuardianSig = () => {
-    if (guardianSection?.style.display !== 'none') ensureGuardianPad();
-    guardianPad?.clear();
-  };
+      const gName = form?.elements['guardianName'];
+      const gRel  = form?.elements['guardianRelationship'];
+      if (gName) gName.required = minor;
+      if (gRel)  gRel.required  = minor;
 
-  // ------- age toggle -------
-  function updateMinorUI() {
-    const isMinor = (ageSelect?.value || '').toLowerCase() === 'no';
-    if (guardianSection) guardianSection.style.display = isMinor ? 'block' : 'none';
-    if (childrenSection) childrenSection.style.display = isMinor ? 'block' : 'none';
-
-    const gName = form.querySelector('input[name="guardianName"]');
-    const gRel = form.querySelector('input[name="guardianRelationship"]');
-    if (gName) gName.required = isMinor;
-    if (gRel) gRel.required = isMinor;
-
-    if (isMinor) ensureGuardianPad();
-  }
-  ageSelect?.addEventListener('change', updateMinorUI);
-  updateMinorUI();
-
-  // ------- submit to Google Apps Script -------
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-
-    hideConfirm();
-    setTodayIfBlank();
-
-    // Move signatures into hidden fields
-    if (modelSigField && modelPad) {
-      modelSigField.value = modelPad.isEmpty() ? '' : modelPad.toDataURL('image/jpeg', 0.85);
-    }
-    if (guardianSigField) {
-      const needGuardian = guardianSection?.style.display !== 'none';
-      guardianSigField.value =
-        (needGuardian && guardianPad && !guardianPad.isEmpty())
-          ? guardianPad.toDataURL('image/jpeg', 0.85)
-          : '';
+      if (signatureLabelEl) signatureLabelEl.textContent = minor ? 'Parent/Guardian Signature:' : 'Model Signature:';
+      scheduleResize();
     }
 
-    // Send form data to Google Apps Script
-   // Send to Google Apps Script (no EmailJS)
-try {
-  await fetch('https://script.google.com/macros/s/AKfycbznYGTUPWd8UVplS7WCIiwIOG7JjOQAuNC1W25d4YRZM0DMGqACA6d6MStuZJqO21oZqA/exec', {
-    method: 'POST',
-    body: new FormData(form),
-    mode: 'no-cors' // avoid browser CORS block
-  });
-
-  // We can't read a response in no-cors mode; just show success UI
-  showConfirm('✅ Thank you! Your form was submitted.');
-  setTimeout(() => {
-    form.reset();
-    modelPad?.clear();
-    guardianPad?.clear?.();
-    hideConfirm();
+    ageSelect?.addEventListener('change', updateMinorUI);
+    ageSelect?.addEventListener('input',  updateMinorUI);
+    form?.addEventListener('input', (e)=>{ if (e.target === ageSelect) updateMinorUI(); });
+    document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) updateMinorUI(); });
     updateMinorUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 5000);
-} catch (err) {
-  console.error('Google Script submit failed:', err);
-  alert('Submission failed. Please try again.');
-}
-  }, { capture: true });
-});
+
+    // ===== Submit (local save only; no network) =====
+    function setTodayIfBlank(){
+      if (signatureDateInp && !signatureDateInp.value) {
+        signatureDateInp.value = new Date().toISOString().slice(0,10);
+      }
+    }
+
+    form?.addEventListener('submit', (e)=>{
+      e.preventDefault();
+
+      const fullName = (form.elements['fullName']?.value || '').trim();
+      if (!fullName) { err('Please enter the model’s full name.'); return; }
+
+      if (!ageSelect?.value) { err('Please select Yes/No for age.'); return; }
+      const minor = isMinor();
+
+      if (!pad || pad.isEmpty()) { err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.'); return; }
+      if (minor) {
+        const gName = (form.elements['guardianName']?.value || '').trim();
+        const gRel  = (form.elements['guardianRelationship']?.value || '').trim();
+        if (!gName || !gRel) { err('Guardian Name and Relationship are required.'); return; }
+      }
+
+      setTodayIfBlank();
+      if (signatureData && pad) signatureData.value = pad.toDataURL('image/jpeg', 0.85);
+
+      const fd   = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      data.timestamp = new Date().toISOString();
+
+      try {
+        const all = getAll(); all.push(data); setAll(all);
+      } catch {
+        err('Could not save locally. Check browser settings.');
+        return;
+      }
+
+      const holdAge = ageSelect.value;
+      form.reset();
+      ageSelect.value = holdAge;
+      pad.clear();
+      updateMinorUI();
+      updateClearState();
+      window.scrollTo({ top:0, behavior:'smooth' });
+
+      ok('Saved locally. Total: ' + getAll().length);
+    }, { capture:true });
+
+    // ===== Admin reveal — TRIPLE TAP ONLY (no long-press) =====
+    (function setupTripleTap(){
+      if (!logo || !adminBar) return;
+
+      const REQUIRED_TAPS = 3;
+      const WINDOW_MS     = 1200;
+      let taps=0, firstAt=0, timer=null, lastTouch=0;
+
+      function reset(){ taps=0; firstAt=0; if (timer){ clearTimeout(timer); timer=null; } }
+      function toggle(){ adminBar.style.display = (adminBar.style.display==='none'||!adminBar.style.display) ? 'flex' : 'none'; }
+
+      function onTouchEnd(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        lastTouch = Date.now();
+        const now = lastTouch;
+        if (!firstAt || (now-firstAt)>WINDOW_MS) { firstAt=now; taps=1; if (timer) clearTimeout(timer); timer=setTimeout(reset, WINDOW_MS+100); }
+        else { taps++; }
+        if (taps>=REQUIRED_TAPS){ if (timer) clearTimeout(timer); reset(); toggle(); }
+      }
+      function onClick(ev){
+        if (Date.now()-lastTouch < 700) return; // ignore synthetic click
+        ev.preventDefault(); ev.stopPropagation();
+        const now = Date.now();
+        if (!firstAt || (now-firstAt)>WINDOW_MS) { firstAt=now; taps=1; if (timer) clearTimeout(timer); timer=setTimeout(reset, WINDOW_MS+100); }
+        else { taps++; }
+        if (taps>=REQUIRED_TAPS){ if (timer) clearTimeout(timer); reset(); toggle(); }
+      }
+
+      logo.addEventListener('touchend', onTouchEnd, { passive:false });
+      logo.addEventListener('click',    onClick,    { passive:false });
+    })();
+
+    // ===== Export buttons (manual only) =====
+    function downloadJSON(filename, obj){
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type:'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 500);
+    }
+    function toCSV(rows){
+      if (!rows.length) return '';
+      const headers = Array.from(new Set(rows.flatMap(r=>Object.keys(r))));
+      const esc = v => `"${String(v??'').replace(/"/g,'""')}"`;
+      const lines = [headers.join(',')].concat(rows.map(r => headers.map(h => esc(r[h])).join(',')));
+      return lines.join('\n');
+    }
+
+    exportAllBtn?.addEventListener('click', ()=>{
+      const entries = getAll();
+      if (!entries.length){ err('No saved forms to export.'); return; }
+      const bundle = { exported_at:new Date().toISOString(), count:entries.length, entries };
+      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+      downloadJSON(fn, bundle); ok('Exported ' + entries.length + ' forms.');
+    });
+
+    exportClearBtn?.addEventListener('click', ()=>{
+      const entries = getAll();
+      if (!entries.length){ err('Nothing to export.'); return; }
+      if (!confirm('Export all forms and then clear them from this device?')) return;
+      const bundle = { exported_at:new Date().toISOString(), count:entries.length, entries };
+      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+      downloadJSON(fn, bundle);
+      localStorage.removeItem(KEY);
+      updateSavedCount();
+      ok('Exported and cleared.');
+    });
+
+    exportCsvBtn?.addEventListener('click', ()=>{
+      const entries = getAll();
+      if (!entries.length){ err('No saved forms to export.'); return; }
+      const csv = toCSV(entries);
+      const blob = new Blob([csv], { type:'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='wildpx_releases_' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 500);
+      ok('Exported CSV.');
+    });
+
+    printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
+  });
+})();
+</script>
