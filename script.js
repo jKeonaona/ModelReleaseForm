@@ -282,35 +282,38 @@ if (!data.modelSignature && data.signatureImage) {
       return lines.join('\n');
     }
 
-  exportAllBtn?.addEventListener('click', ()=>{
+  eexportAllBtn?.addEventListener('click', ()=>{
   const entries = getAll();
   if (!entries.length){ err('No saved forms to export.'); return; }
 
-  // Ensure all signature canvases and image elements are captured as Base64
+  // Do NOT touch the DOM. Just normalize each saved entry.
   const enrichedEntries = entries.map(entry => {
-    // Clone so we don't mutate original
     const e = { ...entry };
 
-    // Capture model signature if present
-    const modelCanvas = document.getElementById('modelSignatureCanvas');
-    if (modelCanvas) {
-      e.modelSignatureData = modelCanvas.toDataURL('image/png');
+    // Ensure the signature key your converter expects is present.
+    // (We saved it at submit as data.modelSignature. If an older entry
+    // only has signatureImage, mirror it.)
+    if (!e.modelSignature && e.signatureImage) {
+      e.modelSignature = e.signatureImage;
     }
 
-    // Capture guardian signature if present
-    const guardianCanvas = document.getElementById('guardianSignatureCanvas');
-    if (guardianCanvas) {
-      e.guardianSignatureData = guardianCanvas.toDataURL('image/png');
-    }
-
-    // Capture selfie/photo if present
-    const selfieImg = document.getElementById('selfiePreview');
-    if (selfieImg && selfieImg.src && selfieImg.src.startsWith('data:image/')) {
-      e.selfieImageData = selfieImg.src;
-    }
+    // Headshot was saved at submit as headshotDataURL (if the user picked one).
+    // Nothing to do here—just leave e.headshotDataURL as-is.
 
     return e;
   });
+
+  const bundle = {
+    exported_at: new Date().toISOString(),
+    count: enrichedEntries.length,
+    entries: enrichedEntries
+  };
+
+  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
+  downloadJSON(fn, bundle);
+  ok('Exported ' + enrichedEntries.length + ' forms.');
+});
+
 
   const bundle = { 
     exported_at: new Date().toISOString(), 
@@ -352,6 +355,7 @@ if (!data.modelSignature && data.signatureImage) {
   });
 })();
 </script>
+
 
 
 
