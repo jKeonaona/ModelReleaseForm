@@ -1,9 +1,6 @@
 <script>
 // ========== WildPx Model Release — UI ONLY (no network) ==========
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('✅ script.js DOMContentLoaded running');
-
-  // ----- storage key -----
   const KEY = 'formEntries';
 
   // ----- elements -----
@@ -24,45 +21,50 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedCountEl       = document.getElementById('savedCount');
   const clearBtn           = document.getElementById('clearSigBtn');
 
-  // ---- guard rails / fast fail logs ----
-  function need(id, el){ if(!el){ console.warn(`⚠️ Missing #${id} in HTML`);} return !!el; }
-  need('releaseForm', form);
-  need('ageCheck', ageSelect);
-  need('guardianSection', guardianSection);
-  need('childrenSection', childrenSection);
-  need('signatureLabel', signatureLabelEl);
-  need('signatureCanvas', signatureCanvas);
-  need('signatureData', signatureData);
-
   // ----- banner helpers -----
   function showBanner(kind, msg) {
     if (!banner) return;
     banner.className = kind; // 'ok' or 'err'
     banner.textContent = msg || (kind === 'ok' ? 'Saved' : 'Error');
     banner.style.display = 'block';
-    setTimeout(() => (banner.style.display = 'none'), kind === 'ok' ? 4000 : 5000);
+    setTimeout(() => (banner.style.display = 'none'), kind === 'ok' ? 3000 : 4500);
   }
   const ok  = (m) => showBanner('ok', m);
   const err = (m) => showBanner('err', m);
 
   // ----- signature pad (single, shared) -----
   let primaryPad = null;
+  let lastCanvasCSSWidth = 0;
 
   function updateClearState() {
     if (!clearBtn) return;
     clearBtn.disabled = !primaryPad || primaryPad.isEmpty();
   }
 
-  function resizeCanvas(canvas, pad) {
+  // Preserve strokes across resize (don’t wipe the pad)
+  function resizeCanvasPreserve(canvas, pad) {
     if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.floor(rect.width);
+    if (!cssW || cssW === lastCanvasCSSWidth) return; // skip if width is 0 or unchanged
+    lastCanvasCSSWidth = cssW;
+
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const rect  = canvas.getBoundingClientRect();
-    if (!rect.width) return; // avoid zero width
-    canvas.width  = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(150 * ratio); // CSS height should be 150px
+    // Save strokes (vector), not bitmap, to preserve quality
+    const data = pad && !pad.isEmpty() ? pad.toData() : null;
+
+    canvas.width  = Math.floor(cssW * ratio);
+    canvas.height = Math.floor(150 * ratio); // match CSS height
     const ctx = canvas.getContext('2d');
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    pad?.clear?.();
+
+    if (pad) {
+      pad.clear();                // clears internal state
+      if (data && data.length) {  // restore prior strokes
+        pad.fromData(data);
+      }
+    }
+    updateClearState();
   }
 
   function bindPadEvents() {
@@ -74,17 +76,30 @@ document.addEventListener('DOMContentLoaded', () => {
   function initPrimaryPad() {
     if (!signatureCanvas) return;
     if (!window.SignaturePad) {
-      console.error('❌ SignaturePad library not found. Include signature_pad.min.js before this script.');
+      console.error('❌ SignaturePad library not found. Include signature_pad.umd.min.js before this script.');
       return;
     }
     if (!primaryPad) {
       primaryPad = new window.SignaturePad(signatureCanvas, { penColor: '#000' });
       bindPadEvents();
-      // first layout pass
-      requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
+      requestAnimationFrame(() => resizeCanvasPreserve(signatureCanvas, primaryPad));
       updateClearState();
     }
   }
+
+  // Debounced resize/orientation handlers
+  let rAF = null;
+  function scheduleResize() {
+    if (rAF) return;
+    rAF = requestAnimationFrame(() => {
+      rAF = null;
+      resizeCanvasPreserve(signatureCanvas, primaryPad);
+    });
+  }
+  window.addEventListener('resize', scheduleResize);
+  window.addEventListener('orientationchange', () => setTimeout(scheduleResize, 300));
+  // iOS PWA / bfcache restore
+  window.addEventListener('pageshow', scheduleResize, { once: true });
 
   // Clear button: long-press to clear; click asks confirm
   let pressTimer = null;
@@ -108,40 +123,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Fallback for HTML onclick if present
   window.clearPrimarySig = () => { primaryPad?.clear(); updateClearState(); };
 
   initPrimaryPad();
-  window.addEventListener('resize', () => requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad)));
-  window.addEventListener('orientationchange', () =>
-    setTimeout(() => resizeCanvas(signatureCanvas, primaryPad), 350)
-  );
 
-  // ----- age toggle -----
+  // ----- age toggle (robust) -----
   function normalizeMinorChoice(val){
     const v = String(val||'').trim().toLowerCase();
-    // treat these as MINOR
+    if (v === '' || v === 'select') return null; // no choice yet
+    // Treat these as MINOR
     const minorTokens = new Set(['no','false','0','minor','under','u18','under 18','<18']);
     return minorTokens.has(v);
   }
 
   function updateMinorUI() {
     if (!(ageSelect && guardianSection && childrenSection && signatureLabelEl)) return;
+    const choice = normalizeMinorChoice(ageSelect.value);
 
-    const isMinor = normalizeMinorChoice(ageSelect.value);
-
+    const isMinor = choice === true; // null means untouched
     guardianSection.style.display = isMinor ? 'block' : 'none';
     childrenSection.style.display = isMinor ? 'block' : 'none';
 
     const gName = form?.elements['guardianName'];
     const gRel  = form?.elements['guardianRelationship'];
-    if (gName) gName.required = isMinor;
-    if (gRel)  gRel.required  = isMinor;
+    if (gName) gName.required = !!isMinor;
+    if (gRel)  gRel.required  = !!isMinor;
 
     signatureLabelEl.textContent = isMinor ? 'Parent/Guardian Signature:' : 'Model Signature:';
 
-    // If sections just appeared, ensure canvas sizing is still valid
-    requestAnimationFrame(() => resizeCanvas(signatureCanvas, primaryPad));
+    // If visibility changed, ensure canvas layout is valid without clearing strokes
+    scheduleResize();
   }
 
   ageSelect?.addEventListener('change', updateMinorUI);
@@ -155,9 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function fileToDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader();
+  async function fileToDataURL(file) {
+    const r = new FileReader();
+    return await new Promise((resolve, reject) => {
       r.onload = () => resolve(r.result);
       r.onerror = () => reject(r.error);
       r.readAsDataURL(file);
@@ -175,8 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function updateSavedCount() {
     if (!savedCountEl) return;
-    const n = getAll().length;
-    savedCountEl.textContent = 'Saved: ' + n;
+    savedCountEl.textContent = 'Saved: ' + getAll().length;
   }
   updateSavedCount();
 
@@ -188,8 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!fullName) { err('Please enter the model’s full name.'); return; }
 
     const ageVal  = ageSelect ? String(ageSelect.value || '') : '';
-    const isMinor = normalizeMinorChoice(ageVal);
-    if (!ageVal) { err('Please select Yes/No for age.'); return; }
+    const minorChoice = normalizeMinorChoice(ageVal);
+    if (minorChoice === null) { err('Please select Yes/No for age.'); return; }
+    const isMinor = minorChoice === true;
 
     if (!primaryPad || primaryPad.isEmpty()) {
       err(isMinor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
@@ -204,17 +215,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setTodayIfBlank();
 
-    // capture signature image into hidden input
     if (signatureData && primaryPad) {
       signatureData.value = primaryPad.toDataURL('image/jpeg', 0.85);
     }
 
-    // collect fields
     const fd   = new FormData(form);
     const data = Object.fromEntries(fd.entries());
     data.timestamp = new Date().toISOString();
 
-    // optional headshot embed (small files)
     const file = form.elements['headshot']?.files?.[0];
     if (file) {
       try {
@@ -228,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // store
     try {
       const all = getAll();
       all.push(data);
@@ -244,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ageSelect && ageValBeforeReset != null) ageSelect.value = ageValBeforeReset;
     primaryPad?.clear();
     updateMinorUI();
+    updateClearState();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
     ok('Saved locally. Total: ' + getAll().length);
