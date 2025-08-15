@@ -34,7 +34,15 @@
     const signatureDateInp = form?.querySelector('input[name="signatureDate"]');
     const headIn = form?.elements['headshot'];
 let headshotDataURL = '';
-
+// capture the chosen headshot file as a dataURL when user picks it
+headIn?.addEventListener('change', (ev)=>{
+  const f = ev.target?.files?.[0];
+  if (!f) { headshotDataURL = ''; return; }
+  const r = new FileReader();
+  r.onload = () => { headshotDataURL = String(r.result || ''); };
+  r.onerror = () => { headshotDataURL = ''; };
+  r.readAsDataURL(f);
+});
 
     const exportAllBtn     = document.getElementById('exportAllBtn');
     const exportClearBtn   = document.getElementById('exportClearBtn');
@@ -323,6 +331,7 @@ if (sigCanvas) {
   });
 })();
 </script>
+
 
 
 
