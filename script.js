@@ -176,8 +176,14 @@
       if (signatureData && pad) signatureData.value = pad.toDataURL('image/jpeg', 0.85);
 
       const fd   = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.timestamp = new Date().toISOString();
+const data = Object.fromEntries(fd.entries());
+data.timestamp = new Date().toISOString();
+
+// Capture signature data from canvas
+const sigCanvas = document.getElementById('signatureCanvas');
+if (sigCanvas) {
+  data.signatureImage = sigCanvas.toDataURL('image/jpeg', 0.85);
+}
 
       try { const all = getAll(); all.push(data); setAll(all); }
       catch { err('Could not save locally. Check browser settings.'); return; }
@@ -280,3 +286,4 @@
   });
 })();
 </script>
+
