@@ -1,15 +1,28 @@
 <script>
-// ========== WildPx Model Release — matches your current HTML ==========
+// ========== WildPx Model Release — SINGLE DROP-IN ==========
+// This file is self-contained. It:
+// - Makes the signature canvas draw on Chrome + iOS
+// - Preserves strokes on resize/orientation
+// - Makes the age reveal reliably toggle on "no"
+// - Restores TRIPLE-TAP (no long-press) on .logo to toggle #adminBar
+// - Wires your existing export buttons (JSON, Export+Clear, CSV, Print)
+// - Silently disables any stale service worker so new code actually runs
+
 (() => {
-  if (window.__WILDPX_LOCK__) return; window.__WILDPX_LOCK__ = true;
+  // Kill stale SW caches so this file really runs (no UI, no prompts)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
+  }
+
+  // Prevent double init if the page hot-reloads
+  if (window.__WILDPX_LOCK__) return;
+  window.__WILDPX_LOCK__ = true;
 
   document.addEventListener('DOMContentLoaded', () => {
-    // ----- storage key -----
-    const KEY = 'formEntries';
-
-    // ----- elements -----
+    // ===== Elements (MUST match your HTML) =====
     const banner           = document.getElementById('banner');
     const form             = document.getElementById('releaseForm');
+
     const ageSelect        = document.getElementById('ageCheck');
     const guardianSection  = document.getElementById('guardianSection');
     const childrenSection  = document.getElementById('childrenSection');
@@ -29,38 +42,39 @@
     const logo             = document.querySelector('.logo');
     const adminBar         = document.getElementById('adminBar');
 
-    // ----- banner -----
+    // ===== Tiny helpers =====
+    const KEY = 'formEntries';
+    const getAll = () => { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } };
+    const setAll = (arr) => { localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); };
+
     function toast(kind, msg){
       if (!banner) return;
       banner.className = kind;
-      banner.textContent = msg || (kind==='ok'?'Saved':'Error');
+      banner.textContent = msg || (kind==='ok' ? 'Saved' : 'Error');
       banner.style.display = 'block';
       setTimeout(()=>banner.style.display='none', kind==='ok'?3000:4500);
     }
     const ok  = (m)=>toast('ok', m);
     const err = (m)=>toast('err', m);
 
-    // ----- storage helpers -----
-    const getAll = () => { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } };
-    const setAll = (arr) => { localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); };
     function updateSavedCount(){ if (savedCountEl) savedCountEl.textContent = 'Saved: ' + getAll().length; }
     updateSavedCount();
 
-    // ===== Signature Pad (single canvas) =====
+    // ===== Signature Pad =====
+    // Make the canvas actually accept touch and have a visible height
+    if (signatureCanvas) {
+      signatureCanvas.style.touchAction = 'none';
+      if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
+    }
+
     let pad = null;
     let lastCssW = 0;
-
-    // Make canvas touch-drawable and ensure visible height without editing CSS files
-    if (signatureCanvas) {
-      if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
-      signatureCanvas.style.touchAction = 'none';
-    }
 
     function resizeCanvasPreserve(canvas, pad){
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const cssW = Math.floor(rect.width);
-      if (!cssW) return;
+      if (!cssW) return; // hidden or zero width
       if (cssW === lastCssW && pad && !pad.isEmpty()) return;
       lastCssW = cssW;
 
@@ -80,15 +94,14 @@
       }
     }
 
-    let rAF = null;
     function scheduleResize(){
-      if (rAF) return;
-      rAF = requestAnimationFrame(()=>{ rAF=null; resizeCanvasPreserve(signatureCanvas, pad); });
+      if (scheduleResize._id) return;
+      scheduleResize._id = requestAnimationFrame(()=>{ scheduleResize._id=null; resizeCanvasPreserve(signatureCanvas, pad); });
     }
 
     function initPad(){
       if (!signatureCanvas) return;
-      if (!window.SignaturePad) { console.error('SignaturePad not loaded'); err('Signature pad library missing.'); return; }
+      if (!window.SignaturePad) { err('Signature pad library missing.'); return; }
       if (!pad) {
         pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
         pad.onEnd = updateClearState;
@@ -136,7 +149,7 @@
     document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) updateMinorUI(); });
     updateMinorUI();
 
-    // ===== Submit (local save only; no network) =====
+    // ===== Submit (local save only) =====
     function setTodayIfBlank(){
       if (signatureDateInp && !signatureDateInp.value) {
         signatureDateInp.value = new Date().toISOString().slice(0,10);
@@ -166,12 +179,8 @@
       const data = Object.fromEntries(fd.entries());
       data.timestamp = new Date().toISOString();
 
-      try {
-        const all = getAll(); all.push(data); setAll(all);
-      } catch {
-        err('Could not save locally. Check browser settings.');
-        return;
-      }
+      try { const all = getAll(); all.push(data); setAll(all); }
+      catch { err('Could not save locally. Check browser settings.'); return; }
 
       const holdAge = ageSelect.value;
       form.reset();
@@ -187,6 +196,9 @@
     // ===== Admin reveal — TRIPLE TAP ONLY (no long-press) =====
     (function setupTripleTap(){
       if (!logo || !adminBar) return;
+
+      // make sure the logo can receive taps
+      logo.style.pointerEvents = 'auto';
 
       const REQUIRED_TAPS = 3;
       const WINDOW_MS     = 1200;
@@ -204,7 +216,7 @@
         if (taps>=REQUIRED_TAPS){ if (timer) clearTimeout(timer); reset(); toggle(); }
       }
       function onClick(ev){
-        if (Date.now()-lastTouch < 700) return; // ignore synthetic click
+        if (Date.now()-lastTouch < 700) return; // ignore synthetic click after touch
         ev.preventDefault(); ev.stopPropagation();
         const now = Date.now();
         if (!firstAt || (now-firstAt)>WINDOW_MS) { firstAt=now; taps=1; if (timer) clearTimeout(timer); timer=setTimeout(reset, WINDOW_MS+100); }
