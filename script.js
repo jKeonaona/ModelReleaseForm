@@ -167,48 +167,65 @@ headIn?.addEventListener('change', (ev)=>{
       }
     }
 
-    form?.addEventListener('submit', (e)=>{
-      e.preventDefault();
+  form?.addEventListener('submit', (e)=>{
+  e.preventDefault();
 
-      const fullName = (form.elements['fullName']?.value || '').trim();
-      if (!fullName) { err('Please enter the model’s full name.'); return; }
+  // --- required fields / checks ---
+  const fullName = (form.elements['fullName']?.value || '').trim();
+  if (!fullName) { err('Please enter the model’s full name.'); return; }
 
-      if (!ageSelect?.value) { err('Please select Yes/No for age.'); return; }
-      const minor = isMinor();
+  if (!ageSelect?.value) { err('Please select Yes/No for age.'); return; }
+  const minor = String(ageSelect.value).toLowerCase() === 'no';
 
-      if (!pad || pad.isEmpty()) { err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.'); return; }
-      if (minor) {
-        const gName = (form.elements['guardianName']?.value || '').trim();
-        const gRel  = (form.elements['guardianRelationship']?.value || '').trim();
-        if (!gName || !gRel) { err('Guardian Name and Relationship are required.'); return; }
-      }
+  if (!pad || pad.isEmpty()) {
+    err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
+    return;
+  }
 
-      setTodayIfBlank();
-      if (signatureData && pad) signatureData.value = pad.toDataURL('image/jpeg', 0.85);
+  // --- default date if blank ---
+  if (signatureDateInp && !signatureDateInp.value) {
+    signatureDateInp.value = new Date().toISOString().slice(0,10);
+  }
 
-      const fd   = new FormData(form);
-const data = Object.fromEntries(fd.entries());
-data.timestamp = new Date().toISOString();
+  // --- collect form fields ---
+  const fd   = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  data.timestamp = new Date().toISOString();
 
-// Capture signature data from canvas
-const sigCanvas = document.getElementById('signatureCanvas');
-if (sigCanvas) {
-  data.signatureImage = sigCanvas.toDataURL('image/jpeg', 0.85);
-}
+  // --- capture signature (from the one canvas) as JPEG ---
+  const sigJPEG = pad.toDataURL('image/jpeg', 0.85);
+  data.modelSignature = sigJPEG;                             // for adults
+  if (minor) data.guardianSignature = sigJPEG; else data.guardianSignature = '';
+  // also mirror into the hidden input so it’s in fd/exports too
+  if (signatureData) signatureData.value = sigJPEG;
 
-      try { const all = getAll(); all.push(data); setAll(all); }
-      catch { err('Could not save locally. Check browser settings.'); return; }
+  // --- capture headshot chosen via <input type="file" name="headshot"> ---
+  // (relies on the change-listener you already added that sets headshotDataURL)
+  if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
+    data.headshotDataURL = headshotDataURL;
+  }
 
-      const holdAge = ageSelect.value;
-      form.reset();
-      ageSelect.value = holdAge;
-      pad.clear();
-      updateMinorUI();
-      updateClearState();
-      window.scrollTo({ top:0, behavior:'smooth' });
+  // --- save locally ---
+  try {
+    const all = getAll();
+    all.push(data);
+    setAll(all);
+  } catch {
+    err('Could not save locally. Check browser settings.');
+    return;
+  }
 
-      ok('Saved locally. Total: ' + getAll().length);
-    }, { capture:true });
+  // --- reset UI, keep age selection ---
+  const holdAge = ageSelect.value;
+  form.reset();
+  ageSelect.value = holdAge;
+  pad.clear();
+  updateMinorUI();
+  updateClearState();
+  window.scrollTo({ top:0, behavior:'smooth' });
+
+  ok('Saved locally. Total: ' + getAll().length);
+}, { capture:true });
 
     // ===== Admin reveal — TRIPLE TAP ONLY (no long-press) =====
     (function setupTripleTap(){
@@ -331,6 +348,7 @@ if (sigCanvas) {
   });
 })();
 </script>
+
 
 
 
