@@ -192,18 +192,22 @@ headIn?.addEventListener('change', (ev)=>{
   const data = Object.fromEntries(fd.entries());
   data.timestamp = new Date().toISOString();
 
-  // --- capture signature (from the one canvas) as JPEG ---
-  const sigJPEG = pad.toDataURL('image/jpeg', 0.85);
-  data.modelSignature = sigJPEG;                             // for adults
-  if (minor) data.guardianSignature = sigJPEG; else data.guardianSignature = '';
-  // also mirror into the hidden input so it’s in fd/exports too
-  if (signatureData) signatureData.value = sigJPEG;
+ // --- capture signature (from the one canvas) as JPEG ---
+const sigJPEG = pad.toDataURL('image/jpeg', 0.85);
+data.modelSignature = sigJPEG;                             // for adults
+if (minor) data.guardianSignature = sigJPEG; else data.guardianSignature = '';
+// also mirror into the hidden input so it’s in fd/exports too
+if (signatureData) signatureData.value = sigJPEG;
 
-  // --- capture headshot chosen via <input type="file" name="headshot"> ---
-  // (relies on the change-listener you already added that sets headshotDataURL)
-  if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
-    data.headshotDataURL = headshotDataURL;
-  }
+// --- capture headshot chosen via <input type="file" name="headshot"> ---
+if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
+  data.headshotDataURL = headshotDataURL;
+}
+
+// Normalize for the converter: ensure modelSignature exists
+if (!data.modelSignature && data.signatureImage) {
+  data.modelSignature = data.signatureImage;
+}
 
   // --- save locally ---
   try {
@@ -348,6 +352,7 @@ headIn?.addEventListener('change', (ev)=>{
   });
 })();
 </script>
+
 
 
 
