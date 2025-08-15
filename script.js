@@ -282,20 +282,49 @@ if (!data.modelSignature && data.signatureImage) {
       return lines.join('\n');
     }
 
-  eexportAllBtn?.addEventListener('click', ()=>{
+  exportAllBtn?.addEventListener('click', ()=>{
   const entries = getAll();
-  if (!entries.length){ err('No saved forms to export.'); return; }
+  if (!entries.length){ 
+    err('No saved forms to export.'); 
+    return; 
+  }
 
-  // Do NOT touch the DOM. Just normalize each saved entry.
+  // Enrich saved entries with current signature & headshot data
   const enrichedEntries = entries.map(entry => {
     const e = { ...entry };
 
-    // Ensure the signature key your converter expects is present.
-    // (We saved it at submit as data.modelSignature. If an older entry
-    // only has signatureImage, mirror it.)
-    if (!e.modelSignature && e.signatureImage) {
-      e.modelSignature = e.signatureImage;
+    // Always attach the model signature from the one canvas
+    const sigCanvas = document.getElementById('signatureCanvas');
+    if (sigCanvas) {
+      e.modelSignature = sigCanvas.toDataURL('image/jpeg', 0.85);
     }
+
+    // If minor, mirror into guardianSignature too
+    if (e.ageCheck && String(e.ageCheck).trim().toLowerCase() === 'no') {
+      e.guardianSignature = e.modelSignature;
+    }
+
+    // Attach the headshot captured via camera/file input
+    if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
+      e.headshotDataURL = headshotDataURL;
+    }
+
+    return e;
+  });
+
+  // Build the export bundle
+  const bundle = { 
+    exported_at: new Date().toISOString(), 
+    count: enrichedEntries.length, 
+    entries: enrichedEntries 
+  };
+
+  // Download JSON
+  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
+  downloadJSON(fn, bundle);
+  ok('Exported ' + enrichedEntries.length + ' forms with images & signatures.');
+});
+
 
     // Headshot was saved at submit as headshotDataURL (if the user picked one).
     // Nothing to do here—just leave e.headshotDataURL as-is.
@@ -355,6 +384,7 @@ if (!data.modelSignature && data.signatureImage) {
   });
 })();
 </script>
+
 
 
 
