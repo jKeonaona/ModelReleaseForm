@@ -250,13 +250,47 @@ if (sigCanvas) {
       return lines.join('\n');
     }
 
-    exportAllBtn?.addEventListener('click', ()=>{
-      const entries = getAll();
-      if (!entries.length){ err('No saved forms to export.'); return; }
-      const bundle = { exported_at:new Date().toISOString(), count:entries.length, entries };
-      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
-      downloadJSON(fn, bundle); ok('Exported ' + entries.length + ' forms.');
-    });
+  exportAllBtn?.addEventListener('click', ()=>{
+  const entries = getAll();
+  if (!entries.length){ err('No saved forms to export.'); return; }
+
+  // Ensure all signature canvases and image elements are captured as Base64
+  const enrichedEntries = entries.map(entry => {
+    // Clone so we don't mutate original
+    const e = { ...entry };
+
+    // Capture model signature if present
+    const modelCanvas = document.getElementById('modelSignatureCanvas');
+    if (modelCanvas) {
+      e.modelSignatureData = modelCanvas.toDataURL('image/png');
+    }
+
+    // Capture guardian signature if present
+    const guardianCanvas = document.getElementById('guardianSignatureCanvas');
+    if (guardianCanvas) {
+      e.guardianSignatureData = guardianCanvas.toDataURL('image/png');
+    }
+
+    // Capture selfie/photo if present
+    const selfieImg = document.getElementById('selfiePreview');
+    if (selfieImg && selfieImg.src && selfieImg.src.startsWith('data:image/')) {
+      e.selfieImageData = selfieImg.src;
+    }
+
+    return e;
+  });
+
+  const bundle = { 
+    exported_at: new Date().toISOString(), 
+    count: enrichedEntries.length, 
+    entries: enrichedEntries 
+  };
+
+  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
+  downloadJSON(fn, bundle);
+  ok('Exported ' + enrichedEntries.length + ' forms with images & signatures.');
+});
+
 
     exportClearBtn?.addEventListener('click', ()=>{
       const entries = getAll();
@@ -286,4 +320,5 @@ if (sigCanvas) {
   });
 })();
 </script>
+
 
