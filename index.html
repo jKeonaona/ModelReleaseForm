@@ -346,11 +346,18 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/ModelReleaseForm/service-worker.js').catch(console.error);
   });
 }
+  document.getElementById('releaseForm').addEventListener('submit', function (e) {
+  const sigCanvas = document.getElementById('signatureCanvas');
+  const sigData = sigCanvas.toDataURL('image/png'); // capture as Base64 PNG
+  document.getElementById('signatureData').value = sigData; // put in hidden field
+});
+
 </script>
 -->
 
 </body>
 </html>
+
 
 
 
