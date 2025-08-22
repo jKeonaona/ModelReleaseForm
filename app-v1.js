@@ -1,84 +1,84 @@
 <script>
 /* ---------- WildPx Model Release — Clean, Verified Drop-In ---------- */
-/* Global helpers available before any early checks */
+/* Minimal toasts */
 function toast(kind, msg){
-  const banner = document.getElementById('banner'); // lazy lookup
+  const banner = document.getElementById('banner');
   if (!banner) return;
   banner.className = kind;
   banner.textContent = msg || (kind === 'ok' ? 'Saved' : 'Error');
   banner.style.display = 'block';
-  setTimeout(() => { banner.style.display = 'none'; }, kind === 'ok' ? 3000 : 4500);
+  setTimeout(()=>banner.style.display='none', kind==='ok'?3000:4500);
 }
 const ok  = (m)=>toast('ok', m);
 const err = (m)=>toast('err', m);
 
+/* Debounce helper */
 function debounce(fn, ms){
   let t;
-  const debounced = (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-  debounced._cancel = () => clearTimeout(t);
-  return debounced;
+  const d = (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+  d._cancel = ()=>clearTimeout(t);
+  return d;
 }
 
-/* Kill stale service workers early so fresh code runs */
+/* Nuke any stale service workers (so new code runs) */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations?.()
     .then(rs => rs.forEach(r => r.unregister()))
-    .catch(e => console.error('Failed to unregister service worker:', e));
+    .catch(e => console.warn('SW unregister failed:', e));
 }
 
 /* Prevent double init */
-if (window.__WILDPX_LOCK__) { /* no-op */ }
-else {
+if (!window.__WILDPX_LOCK__) {
   window.__WILDPX_LOCK__ = true;
 
   document.addEventListener('DOMContentLoaded', () => {
-    /* ----- Elements (declare before use) ----- */
-    const form             = document.getElementById('releaseForm');
-    const savedCountEl     = document.getElementById('savedCount');
+    /* ----- Elements ----- */
+    const form            = document.getElementById('releaseForm');
+    const savedCountEl    = document.getElementById('savedCount');
 
-    const ageSelect        = document.getElementById('ageCheck');
-    const guardianSection  = document.getElementById('guardianSection');
-    const childrenSection  = document.getElementById('childrenSection');
+    const ageSelect       = document.getElementById('ageCheck');
+    const guardianSection = document.getElementById('guardianSection');
+    const childrenSection = document.getElementById('childrenSection');
 
-    const signatureCanvas  = document.getElementById('signatureCanvas');
-    const signatureData    = document.getElementById('signatureData');
-    const signatureDateInp = form?.querySelector('input[name="signatureDate"]');
-    const clearBtn         = document.getElementById('clearSigBtn');
+    const signatureLabelEl= document.getElementById('signatureLabel');
+    const signatureCanvas = document.getElementById('signatureCanvas');
+    const signatureData   = document.getElementById('signatureData');
+    const clearBtn        = document.getElementById('clearSigBtn');
+    const signatureDateInp= form?.querySelector('input[name="signatureDate"]');
 
-    const headIn           = form?.elements?.['headshot'] ?? null;
+    const headIn          = form?.elements?.['headshot'] ?? null;
 
-    const exportAllBtn     = document.getElementById('exportAllBtn');
-    const exportClearBtn   = document.getElementById('exportClearBtn');
-    const exportCsvBtn     = document.getElementById('exportCsvBtn');
-    const printPdfBtn      = document.getElementById('printPdfBtn');
+    const exportAllBtn    = document.getElementById('exportAllBtn');
+    const exportClearBtn  = document.getElementById('exportClearBtn');
+    const exportCsvBtn    = document.getElementById('exportCsvBtn'); // optional button
+    const printPdfBtn     = document.getElementById('printPdfBtn');  // optional button
 
-    const logo             = document.querySelector('.logo');
-    const adminBar         = document.getElementById('adminBar');
+    const logo            = document.querySelector('.logo');
+    const adminBar        = document.getElementById('adminBar');
 
-    /* ----- Early dependency checks (now safe: err exists) ----- */
-    if (!form)             { err('Form element #releaseForm not found.'); return; }
-    if (!signatureCanvas)  { err('Signature canvas #signatureCanvas not found.'); return; }
-    if (!window.SignaturePad) { err('SignaturePad library is missing.'); return; }
+    /* ----- Guard required DOM ----- */
+    if (!form)            { err('Form #releaseForm not found.'); return; }
+    if (!signatureCanvas) { err('Canvas #signatureCanvas not found.'); return; }
 
-    /* ----- Storage helpers ----- */
+    /* ----- Local storage helpers ----- */
     const KEY = 'formEntries';
     const getAll = () => { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } };
     const setAll = (arr) => { localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); };
     function updateSavedCount(){ if (savedCountEl) savedCountEl.textContent = 'Saved: ' + getAll().length; }
     updateSavedCount();
 
-    /* ----- Prefill signature date on load ----- */
-    function setTodayIfBlank() {
+    /* ----- Default signature date ----- */
+    function setTodayIfBlank(){
       if (signatureDateInp && !signatureDateInp.value) {
         signatureDateInp.value = new Date().toISOString().slice(0,10);
       }
     }
     setTodayIfBlank();
 
-    /* ----- Headshot capture to data URL (string), guarded ----- */
+    /* ----- Headshot capture (to data URL string) ----- */
     let headshotDataURL = '';
     if (headIn) {
-      headIn.addEventListener('change', (ev) => {
+      headIn.addEventListener('change', (ev)=>{
         const f = ev.target?.files?.[0];
         if (!f) { headshotDataURL = ''; return; }
         const r = new FileReader();
@@ -88,18 +88,24 @@ else {
       });
     }
 
-    /* ----- SignaturePad + resize-preserve ----- */
+    /* ----- SignaturePad + resize-preserve (graceful if lib missing) ----- */
+    const HAS_SIG_LIB = !!window.SignaturePad; // do NOT abort if false
+    if (!HAS_SIG_LIB) console.warn('SignaturePad missing — drawing disabled, form still works.');
+
     signatureCanvas.style.touchAction = 'none';
     if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
 
-    const pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
-    pad.onEnd = updateClearState;
+    let pad = null;
+    if (HAS_SIG_LIB) {
+      pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
+      pad.onEnd = updateClearState;
+    }
 
     let lastCssW = 0;
     function resizeCanvasPreserve(canvas, padInst){
       const rect = canvas.getBoundingClientRect();
       const cssW = Math.floor(rect.width);
-      if (!cssW) return;
+      if (!cssW) return;                            // hidden or zero-width
       if (cssW === lastCssW && padInst && !padInst.isEmpty()) return;
       lastCssW = cssW;
 
@@ -113,44 +119,44 @@ else {
       const ctx = canvas.getContext('2d');
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-      padInst.clear();
-      if (data && data.length) padInst.fromData(data);
+      if (padInst) {
+        padInst.clear();
+        if (data && data.length) padInst.fromData(data);
+      }
     }
-    function updateClearState(){ if (clearBtn) clearBtn.disabled = pad.isEmpty(); }
+    function updateClearState(){ if (clearBtn) clearBtn.disabled = !(pad && !pad.isEmpty()); }
     function scheduleResize(){ resizeCanvasPreserve(signatureCanvas, pad); }
-
     requestAnimationFrame(scheduleResize);
 
     clearBtn?.addEventListener('click', (e)=>{
-      if (pad.isEmpty()) return;
+      if (!pad || pad.isEmpty()) return;
       e.preventDefault();
       if (confirm('Clear signature?')) { pad.clear(); updateClearState(); }
     });
 
-    /* Stable debounced handler (add & remove use same ref) */
     const onResizeDebounced = debounce(scheduleResize, 100);
     window.addEventListener('resize', onResizeDebounced);
     window.addEventListener('orientationchange', () => setTimeout(scheduleResize, 300));
     window.addEventListener('pageshow', () => scheduleResize(), { once:true });
 
-    /* ----- Age reveal UI ----- */
-    function isMinor(){ return String(ageSelect?.value||'').trim().toLowerCase() === 'no'; }
+    /* ----- Age reveal (robust) + label text ----- */
+    function isMinor(){
+      const v = String(ageSelect?.value || '').trim().toLowerCase();
+      return v === 'no' || v === 'n' || v === 'minor' || v === '0' || v === 'false';
+    }
     function updateMinorUI(){
       const minor = isMinor();
       if (guardianSection) guardianSection.style.display = minor ? 'block' : 'none';
       if (childrenSection) childrenSection.style.display = minor ? 'block' : 'none';
-      const gName = form.elements['guardianName'];
-      const gRel  = form.elements['guardianRelationship'];
-      if (gName) gName.required = minor;
-      if (gRel)  gRel.required  = minor;
+      if (signatureLabelEl) signatureLabelEl.textContent = minor ? 'Parent/Guardian Signature:' : 'Model Signature:';
       scheduleResize();
     }
     ageSelect?.addEventListener('change', updateMinorUI);
     ageSelect?.addEventListener('input',  updateMinorUI);
     updateMinorUI();
 
-    /* ----- Submit: save locally with PNG signature & string headshot ----- */
-    form.addEventListener('submit', (e) => {
+    /* ----- Submit: save locally (PNG signature + string headshot) ----- */
+    form.addEventListener('submit', (e)=>{
       e.preventDefault();
 
       const fullName = (form.elements['fullName']?.value || '').trim();
@@ -163,7 +169,15 @@ else {
       const gRel  = form.elements['guardianRelationship']?.value?.trim() || '';
       if (minor && (!gName || !gRel)) { err('Please provide guardian name and relationship.'); return; }
 
-      if (pad.isEmpty()) { err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.'); return; }
+      if (HAS_SIG_LIB) {
+        if (!pad || pad.isEmpty()) {
+          err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
+          return;
+        }
+      } else {
+        err('Signature pad is unavailable right now. Please reload to enable signing.'); 
+        return;
+      }
 
       setTodayIfBlank();
 
@@ -171,15 +185,17 @@ else {
       const data = Object.fromEntries(fd.entries());
       data.timestamp = new Date().toISOString();
 
-      const sigPNG = pad.toDataURL('image/png'); // robust for PDF libs
+      // PNG signature
+      const sigPNG = pad.toDataURL('image/png');
       data.modelSignature    = sigPNG;
       data.guardianSignature = minor ? sigPNG : '';
       if (signatureData) signatureData.value = sigPNG;
 
+      // Headshot as string (or omit)
       if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
         data.headshot = headshotDataURL;
-      } else {
-        if ('headshot' in data) delete data.headshot; // avoid "{}"
+      } else if ('headshot' in data) {
+        delete data.headshot; // never {}
       }
 
       try {
@@ -187,14 +203,14 @@ else {
         all.push(data);
         setAll(all);
       } catch {
-        err('Could not save locally. LocalStorage may be disabled or full.');
+        err('Could not save locally. Check browser settings/quota.');
         return;
       }
 
       const holdAge = ageSelect.value;
       form.reset();
       ageSelect.value = holdAge;
-      pad.clear();
+      if (pad) pad.clear();
       headshotDataURL = '';
       if (headIn) headIn.value = '';
       updateMinorUI();
@@ -203,11 +219,10 @@ else {
       ok('Saved locally. Total: ' + getAll().length);
     }, { capture:true });
 
-    /* ----- Triple-tap admin (tight window) ----- */
+    /* ----- Admin triple-tap (tight window) ----- */
     (function setupTripleTap(){
       if (!logo || !adminBar) return;
       logo.style.pointerEvents = 'auto';
-
       const REQUIRED_TAPS = 3;
       const WINDOW_MS     = 800;
       let taps=0, firstAt=0, timer=null, lastTouch=0;
@@ -248,7 +263,7 @@ else {
       if (!rows.length) return '';
       const headers = Array.from(new Set(rows.flatMap(r => Object.keys(r))))
         .filter(h => !['modelSignature','guardianSignature','headshot'].includes(h));
-      const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
       const lines = [headers.join(',')].concat(rows.map(r => headers.map(h => esc(r[h])).join(',')));
       return lines.join('\n');
     }
@@ -289,10 +304,9 @@ else {
     printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
 
     /* ----- Cleanup ----- */
-    window.addEventListener('unload', () => {
+    window.addEventListener('unload', ()=>{
       window.removeEventListener('resize', onResizeDebounced);
       onResizeDebounced._cancel?.();
-      // orientationchange listener uses anonymous setTimeout; safe to leave
     });
   });
 }
