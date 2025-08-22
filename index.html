@@ -336,13 +336,15 @@ if ('serviceWorker' in navigator) {
     printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
   });
 
-<!-- SignaturePad library (required for drawing to work) -->
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<!-- SignaturePad library (required for drawing) -->
+<script src="https://unpkg.com/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
-<!-- Load your fixed app script -->
-<script src="./app-v1.js?v=3"></script>
+<!-- Your app script -->
+<script src="./app-v1.js?v=4"></script>
 </body>
 </html>
+
+
 
 
 
