@@ -1,96 +1,110 @@
 <script>
-// ========== WildPx Model Release — SINGLE DROP-IN ==========
-// This file is self-contained. It:
-// - Makes the signature canvas draw on Chrome + iOS
-// - Preserves strokes on resize/orientation
-// - Makes the age reveal reliably toggle on "no"
-// - Restores TRIPLE-TAP (no long-press) on .logo to toggle #adminBar
-// - Wires your existing export buttons (JSON, Export+Clear, CSV, Print)
-// - Silently disables any stale service worker so new code actually runs
+/* ---------- WildPx Model Release — Clean, Verified Drop-In ---------- */
+/* Global helpers available before any early checks */
+function toast(kind, msg){
+  const banner = document.getElementById('banner'); // lazy lookup
+  if (!banner) return;
+  banner.className = kind;
+  banner.textContent = msg || (kind === 'ok' ? 'Saved' : 'Error');
+  banner.style.display = 'block';
+  setTimeout(() => { banner.style.display = 'none'; }, kind === 'ok' ? 3000 : 4500);
+}
+const ok  = (m)=>toast('ok', m);
+const err = (m)=>toast('err', m);
 
-(() => {
-  // Kill stale SW caches so this file really runs (no UI, no prompts)
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
-  }
+function debounce(fn, ms){
+  let t;
+  const debounced = (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  debounced._cancel = () => clearTimeout(t);
+  return debounced;
+}
 
-  // Prevent double init if the page hot-reloads
-  if (window.__WILDPX_LOCK__) return;
+/* Kill stale service workers early so fresh code runs */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations?.()
+    .then(rs => rs.forEach(r => r.unregister()))
+    .catch(e => console.error('Failed to unregister service worker:', e));
+}
+
+/* Prevent double init */
+if (window.__WILDPX_LOCK__) { /* no-op */ }
+else {
   window.__WILDPX_LOCK__ = true;
 
   document.addEventListener('DOMContentLoaded', () => {
-    // ===== Elements (MUST match your HTML) =====
-    const banner           = document.getElementById('banner');
+    /* ----- Elements (declare before use) ----- */
     const form             = document.getElementById('releaseForm');
+    const savedCountEl     = document.getElementById('savedCount');
 
     const ageSelect        = document.getElementById('ageCheck');
     const guardianSection  = document.getElementById('guardianSection');
     const childrenSection  = document.getElementById('childrenSection');
 
-    const signatureLabelEl = document.getElementById('signatureLabel');
     const signatureCanvas  = document.getElementById('signatureCanvas');
     const signatureData    = document.getElementById('signatureData');
-    const clearBtn         = document.getElementById('clearSigBtn');
     const signatureDateInp = form?.querySelector('input[name="signatureDate"]');
-    const headIn = form?.elements['headshot'];
-let headshotDataURL = '';
-// capture the chosen headshot file as a dataURL when user picks it
-headIn?.addEventListener('change', (ev)=>{
-  const f = ev.target?.files?.[0];
-  if (!f) { headshotDataURL = ''; return; }
-  const r = new FileReader();
-  r.onload = () => { headshotDataURL = String(r.result || ''); };
-  r.onerror = () => { headshotDataURL = ''; };
-  r.readAsDataURL(f);
-});
+    const clearBtn         = document.getElementById('clearSigBtn');
+
+    const headIn           = form?.elements?.['headshot'] ?? null;
 
     const exportAllBtn     = document.getElementById('exportAllBtn');
     const exportClearBtn   = document.getElementById('exportClearBtn');
     const exportCsvBtn     = document.getElementById('exportCsvBtn');
     const printPdfBtn      = document.getElementById('printPdfBtn');
-    const savedCountEl     = document.getElementById('savedCount');
 
     const logo             = document.querySelector('.logo');
     const adminBar         = document.getElementById('adminBar');
 
-    // ===== Tiny helpers =====
+    /* ----- Early dependency checks (now safe: err exists) ----- */
+    if (!form)             { err('Form element #releaseForm not found.'); return; }
+    if (!signatureCanvas)  { err('Signature canvas #signatureCanvas not found.'); return; }
+    if (!window.SignaturePad) { err('SignaturePad library is missing.'); return; }
+
+    /* ----- Storage helpers ----- */
     const KEY = 'formEntries';
     const getAll = () => { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } };
     const setAll = (arr) => { localStorage.setItem(KEY, JSON.stringify(arr)); updateSavedCount(); };
-
-    function toast(kind, msg){
-      if (!banner) return;
-      banner.className = kind;
-      banner.textContent = msg || (kind==='ok' ? 'Saved' : 'Error');
-      banner.style.display = 'block';
-      setTimeout(()=>banner.style.display='none', kind==='ok'?3000:4500);
-    }
-    const ok  = (m)=>toast('ok', m);
-    const err = (m)=>toast('err', m);
-
     function updateSavedCount(){ if (savedCountEl) savedCountEl.textContent = 'Saved: ' + getAll().length; }
     updateSavedCount();
 
-    // ===== Signature Pad =====
-    // Make the canvas actually accept touch and have a visible height
-    if (signatureCanvas) {
-      signatureCanvas.style.touchAction = 'none';
-      if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
+    /* ----- Prefill signature date on load ----- */
+    function setTodayIfBlank() {
+      if (signatureDateInp && !signatureDateInp.value) {
+        signatureDateInp.value = new Date().toISOString().slice(0,10);
+      }
+    }
+    setTodayIfBlank();
+
+    /* ----- Headshot capture to data URL (string), guarded ----- */
+    let headshotDataURL = '';
+    if (headIn) {
+      headIn.addEventListener('change', (ev) => {
+        const f = ev.target?.files?.[0];
+        if (!f) { headshotDataURL = ''; return; }
+        const r = new FileReader();
+        r.onload  = () => { headshotDataURL = String(r.result || ''); };
+        r.onerror = () => { headshotDataURL = ''; };
+        r.readAsDataURL(f);
+      });
     }
 
-    let pad = null;
-    let lastCssW = 0;
+    /* ----- SignaturePad + resize-preserve ----- */
+    signatureCanvas.style.touchAction = 'none';
+    if (!signatureCanvas.style.height) signatureCanvas.style.height = '150px';
 
-    function resizeCanvasPreserve(canvas, pad){
-      if (!canvas) return;
+    const pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
+    pad.onEnd = updateClearState;
+
+    let lastCssW = 0;
+    function resizeCanvasPreserve(canvas, padInst){
       const rect = canvas.getBoundingClientRect();
       const cssW = Math.floor(rect.width);
-      if (!cssW) return; // hidden or zero width
-      if (cssW === lastCssW && pad && !pad.isEmpty()) return;
+      if (!cssW) return;
+      if (cssW === lastCssW && padInst && !padInst.isEmpty()) return;
       lastCssW = cssW;
 
       const ratio = Math.max(window.devicePixelRatio||1, 1);
-      const data  = pad && !pad.isEmpty() ? pad.toData() : null;
+      const data  = padInst && !padInst.isEmpty() ? padInst.toData() : null;
 
       const cssH = Math.floor(parseFloat(getComputedStyle(canvas).height) || 150);
       canvas.width  = Math.floor(cssW * ratio);
@@ -99,147 +113,103 @@ headIn?.addEventListener('change', (ev)=>{
       const ctx = canvas.getContext('2d');
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-      if (pad) {
-        pad.clear();
-        if (data && data.length) pad.fromData(data);
-      }
+      padInst.clear();
+      if (data && data.length) padInst.fromData(data);
     }
+    function updateClearState(){ if (clearBtn) clearBtn.disabled = pad.isEmpty(); }
+    function scheduleResize(){ resizeCanvasPreserve(signatureCanvas, pad); }
 
-    function scheduleResize(){
-      if (scheduleResize._id) return;
-      scheduleResize._id = requestAnimationFrame(()=>{ scheduleResize._id=null; resizeCanvasPreserve(signatureCanvas, pad); });
-    }
-
-    function initPad(){
-      if (!signatureCanvas) return;
-      if (!window.SignaturePad) { err('Signature pad library missing.'); return; }
-      if (!pad) {
-        pad = new window.SignaturePad(signatureCanvas, { penColor:'#000' });
-        pad.onEnd = updateClearState;
-        requestAnimationFrame(()=>resizeCanvasPreserve(signatureCanvas, pad));
-        updateClearState();
-      }
-    }
-
-    function updateClearState(){
-      if (!clearBtn) return;
-      clearBtn.disabled = !pad || pad.isEmpty();
-    }
+    requestAnimationFrame(scheduleResize);
 
     clearBtn?.addEventListener('click', (e)=>{
-      if (!pad || pad.isEmpty()) return;
+      if (pad.isEmpty()) return;
       e.preventDefault();
       if (confirm('Clear signature?')) { pad.clear(); updateClearState(); }
     });
 
-    initPad();
-    window.addEventListener('resize',            scheduleResize);
-    window.addEventListener('orientationchange', ()=>setTimeout(scheduleResize, 300));
-    window.addEventListener('pageshow',          scheduleResize, { once:true });
+    /* Stable debounced handler (add & remove use same ref) */
+    const onResizeDebounced = debounce(scheduleResize, 100);
+    window.addEventListener('resize', onResizeDebounced);
+    window.addEventListener('orientationchange', () => setTimeout(scheduleResize, 300));
+    window.addEventListener('pageshow', () => scheduleResize(), { once:true });
 
-    // ===== Age reveal (Yes/No) =====
+    /* ----- Age reveal UI ----- */
     function isMinor(){ return String(ageSelect?.value||'').trim().toLowerCase() === 'no'; }
-
     function updateMinorUI(){
       const minor = isMinor();
-      if (guardianSection)  guardianSection.style.display = minor ? 'block' : 'none';
-      if (childrenSection)  childrenSection.style.display = minor ? 'block' : 'none';
-
-      const gName = form?.elements['guardianName'];
-      const gRel  = form?.elements['guardianRelationship'];
+      if (guardianSection) guardianSection.style.display = minor ? 'block' : 'none';
+      if (childrenSection) childrenSection.style.display = minor ? 'block' : 'none';
+      const gName = form.elements['guardianName'];
+      const gRel  = form.elements['guardianRelationship'];
       if (gName) gName.required = minor;
       if (gRel)  gRel.required  = minor;
-
-      if (signatureLabelEl) signatureLabelEl.textContent = minor ? 'Parent/Guardian Signature:' : 'Model Signature:';
       scheduleResize();
     }
-
     ageSelect?.addEventListener('change', updateMinorUI);
     ageSelect?.addEventListener('input',  updateMinorUI);
-    form?.addEventListener('input', (e)=>{ if (e.target === ageSelect) updateMinorUI(); });
-    document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) updateMinorUI(); });
     updateMinorUI();
 
-    // ===== Submit (local save only) =====
-    function setTodayIfBlank(){
-      if (signatureDateInp && !signatureDateInp.value) {
-        signatureDateInp.value = new Date().toISOString().slice(0,10);
+    /* ----- Submit: save locally with PNG signature & string headshot ----- */
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const fullName = (form.elements['fullName']?.value || '').trim();
+      if (!fullName) { err('Please enter the model’s full name.'); return; }
+
+      if (!ageSelect?.value) { err('Please select Yes/No for age.'); return; }
+      const minor = isMinor();
+
+      const gName = form.elements['guardianName']?.value?.trim() || '';
+      const gRel  = form.elements['guardianRelationship']?.value?.trim() || '';
+      if (minor && (!gName || !gRel)) { err('Please provide guardian name and relationship.'); return; }
+
+      if (pad.isEmpty()) { err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.'); return; }
+
+      setTodayIfBlank();
+
+      const fd   = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      data.timestamp = new Date().toISOString();
+
+      const sigPNG = pad.toDataURL('image/png'); // robust for PDF libs
+      data.modelSignature    = sigPNG;
+      data.guardianSignature = minor ? sigPNG : '';
+      if (signatureData) signatureData.value = sigPNG;
+
+      if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
+        data.headshot = headshotDataURL;
+      } else {
+        if ('headshot' in data) delete data.headshot; // avoid "{}"
       }
-    }
 
-  form?.addEventListener('submit', (e)=>{
-  e.preventDefault();
+      try {
+        const all = getAll();
+        all.push(data);
+        setAll(all);
+      } catch {
+        err('Could not save locally. LocalStorage may be disabled or full.');
+        return;
+      }
 
-  // --- required fields / checks ---
-  const fullName = (form.elements['fullName']?.value || '').trim();
-  if (!fullName) { err('Please enter the model’s full name.'); return; }
+      const holdAge = ageSelect.value;
+      form.reset();
+      ageSelect.value = holdAge;
+      pad.clear();
+      headshotDataURL = '';
+      if (headIn) headIn.value = '';
+      updateMinorUI();
+      updateClearState();
+      window.scrollTo({ top:0, behavior:'smooth' });
+      ok('Saved locally. Total: ' + getAll().length);
+    }, { capture:true });
 
-  if (!ageSelect?.value) { err('Please select Yes/No for age.'); return; }
-  const minor = String(ageSelect.value).toLowerCase() === 'no';
-
-  if (!pad || pad.isEmpty()) {
-    err(minor ? 'Please have the Parent/Guardian sign.' : 'Please sign as the model.');
-    return;
-  }
-
-  // --- default date if blank ---
-  if (signatureDateInp && !signatureDateInp.value) {
-    signatureDateInp.value = new Date().toISOString().slice(0,10);
-  }
-
-  // --- collect form fields ---
-  const fd   = new FormData(form);
-  const data = Object.fromEntries(fd.entries());
-  data.timestamp = new Date().toISOString();
-
- // --- capture signature (from the one canvas) as JPEG ---
-const sigJPEG = pad.toDataURL('image/jpeg', 0.85);
-data.modelSignature = sigJPEG;                             // for adults
-if (minor) data.guardianSignature = sigJPEG; else data.guardianSignature = '';
-// also mirror into the hidden input so it’s in fd/exports too
-if (signatureData) signatureData.value = sigJPEG;
-
-// --- capture headshot chosen via <input type="file" name="headshot"> ---
-if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
-  data.headshotDataURL = headshotDataURL;
-}
-
-// Normalize for the converter: ensure modelSignature exists
-if (!data.modelSignature && data.signatureImage) {
-  data.modelSignature = data.signatureImage;
-}
-
-  // --- save locally ---
-  try {
-    const all = getAll();
-    all.push(data);
-    setAll(all);
-  } catch {
-    err('Could not save locally. Check browser settings.');
-    return;
-  }
-
-  // --- reset UI, keep age selection ---
-  const holdAge = ageSelect.value;
-  form.reset();
-  ageSelect.value = holdAge;
-  pad.clear();
-  updateMinorUI();
-  updateClearState();
-  window.scrollTo({ top:0, behavior:'smooth' });
-
-  ok('Saved locally. Total: ' + getAll().length);
-}, { capture:true });
-
-    // ===== Admin reveal — TRIPLE TAP ONLY (no long-press) =====
+    /* ----- Triple-tap admin (tight window) ----- */
     (function setupTripleTap(){
       if (!logo || !adminBar) return;
-
-      // make sure the logo can receive taps
       logo.style.pointerEvents = 'auto';
 
       const REQUIRED_TAPS = 3;
-      const WINDOW_MS     = 1200;
+      const WINDOW_MS     = 800;
       let taps=0, firstAt=0, timer=null, lastTouch=0;
 
       function reset(){ taps=0; firstAt=0; if (timer){ clearTimeout(timer); timer=null; } }
@@ -254,7 +224,7 @@ if (!data.modelSignature && data.signatureImage) {
         if (taps>=REQUIRED_TAPS){ if (timer) clearTimeout(timer); reset(); toggle(); }
       }
       function onClick(ev){
-        if (Date.now()-lastTouch < 700) return; // ignore synthetic click after touch
+        if (Date.now()-lastTouch < 700) return;
         ev.preventDefault(); ev.stopPropagation();
         const now = Date.now();
         if (!firstAt || (now-firstAt)>WINDOW_MS) { firstAt=now; taps=1; if (timer) clearTimeout(timer); timer=setTimeout(reset, WINDOW_MS+100); }
@@ -266,7 +236,7 @@ if (!data.modelSignature && data.signatureImage) {
       logo.addEventListener('click',    onClick,    { passive:false });
     })();
 
-    // ===== Export buttons (manual only) =====
+    /* ----- Export helpers & buttons ----- */
     function downloadJSON(filename, obj){
       const blob = new Blob([JSON.stringify(obj, null, 2)], { type:'application/json' });
       const url  = URL.createObjectURL(blob);
@@ -276,85 +246,21 @@ if (!data.modelSignature && data.signatureImage) {
     }
     function toCSV(rows){
       if (!rows.length) return '';
-      const headers = Array.from(new Set(rows.flatMap(r=>Object.keys(r))));
-      const esc = v => `"${String(v??'').replace(/"/g,'""')}"`;
+      const headers = Array.from(new Set(rows.flatMap(r => Object.keys(r))))
+        .filter(h => !['modelSignature','guardianSignature','headshot'].includes(h));
+      const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const lines = [headers.join(',')].concat(rows.map(r => headers.map(h => esc(r[h])).join(',')));
       return lines.join('\n');
     }
 
-  exportAllBtn?.addEventListener('click', ()=>{
-  const entries = getAll();
-  if (!entries.length){ 
-    err('No saved forms to export.'); 
-    return; 
-  }
-
-  // Enrich saved entries with current signature & headshot data
-  const enrichedEntries = entries.map(entry => {
-    const e = { ...entry };
-
-    // Always attach the model signature from the one canvas
-    const sigCanvas = document.getElementById('signatureCanvas');
-    if (sigCanvas) {
-      e.modelSignature = sigCanvas.toDataURL('image/jpeg', 0.85);
-    }
-
-    // If minor, mirror into guardianSignature too
-    if (e.ageCheck && String(e.ageCheck).trim().toLowerCase() === 'no') {
-      e.guardianSignature = e.modelSignature;
-    }
-
-    // Attach the headshot captured via camera/file input
-    if (typeof headshotDataURL === 'string' && headshotDataURL.startsWith('data:image/')) {
-      e.headshotDataURL = headshotDataURL;
-    }
-
-    return e;
-  });
-
-  // Build the export bundle
-  const bundle = { 
-    exported_at: new Date().toISOString(), 
-    count: enrichedEntries.length, 
-    entries: enrichedEntries 
-  };
-
-  // Download JSON
-  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
-  downloadJSON(fn, bundle);
-  ok('Exported ' + enrichedEntries.length + ' forms with images & signatures.');
-});
-
-
-    // Headshot was saved at submit as headshotDataURL (if the user picked one).
-    // Nothing to do here—just leave e.headshotDataURL as-is.
-
-    return e;
-  });
-
-  const bundle = {
-    exported_at: new Date().toISOString(),
-    count: enrichedEntries.length,
-    entries: enrichedEntries
-  };
-
-  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
-  downloadJSON(fn, bundle);
-  ok('Exported ' + enrichedEntries.length + ' forms.');
-});
-
-
-  const bundle = { 
-    exported_at: new Date().toISOString(), 
-    count: enrichedEntries.length, 
-    entries: enrichedEntries 
-  };
-
-  const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + enrichedEntries.length + '.json';
-  downloadJSON(fn, bundle);
-  ok('Exported ' + enrichedEntries.length + ' forms with images & signatures.');
-});
-
+    exportAllBtn?.addEventListener('click', ()=>{
+      const entries = getAll();
+      if (!entries.length){ err('No saved forms to export.'); return; }
+      const bundle = { exported_at:new Date().toISOString(), count:entries.length, entries };
+      const fn = 'wildpx_releases_' + new Date().toISOString().slice(0,10) + '_n' + entries.length + '.json';
+      downloadJSON(fn, bundle);
+      ok('Exported ' + entries.length + ' forms.');
+    });
 
     exportClearBtn?.addEventListener('click', ()=>{
       const entries = getAll();
@@ -381,14 +287,13 @@ if (!data.modelSignature && data.signatureImage) {
     });
 
     printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
+
+    /* ----- Cleanup ----- */
+    window.addEventListener('unload', () => {
+      window.removeEventListener('resize', onResizeDebounced);
+      onResizeDebounced._cancel?.();
+      // orientationchange listener uses anonymous setTimeout; safe to leave
+    });
   });
-})();
+}
 </script>
-
-
-
-
-
-
-
-
