@@ -336,34 +336,10 @@ if ('serviceWorker' in navigator) {
     printPdfBtn?.addEventListener('click', ()=>{ window.print(); });
   });
 
-  // ---- Capture signature on form submit ----
-  document.getElementById('releaseForm').addEventListener('submit', function (e) {
-    const sigCanvas = document.getElementById('signatureCanvas');
-    if (sigCanvas) {
-      const sigData = sigCanvas.toDataURL('image/png'); // capture Base64 PNG
-      const hiddenField = document.getElementById('signatureData');
-      if (hiddenField) hiddenField.value = sigData;
-    }
-  });
-
-})();
-</script>
-
-<!-- (Optional) Leave SW disabled for now; it was breaking caching
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/ModelReleaseForm/service-worker.js').catch(console.error);
-  });
-}
-<script src="app-v1.js?v=1"></script>
-
--->
-
+<!-- Load your fixed app script (must be OUTSIDE comments) -->
+<script src="app-v1.js?v=2"></script>
 </body>
 </html>
-
-
 
 
 
